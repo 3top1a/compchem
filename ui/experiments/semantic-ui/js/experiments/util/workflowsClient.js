@@ -1,13 +1,13 @@
 import { safeFetch } from "./safeFetch";
 
-const API_URL = "http://localhost:8062/api"
+const API_URL = "https://localhost:5000/api";
 
 export const fetchAvailableWorkflows = async (files) => {
   const data = {
-    files
+    files,
   };
 
-  const response = await safeFetch(`${API_URL}/v1/workflows/available`, {
+  const response = await safeFetch(`${API_URL}/workflows/available`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -22,10 +22,10 @@ export const createWorkflow = async (recordId, workflowName, files) => {
   const data = {
     recordId,
     name: workflowName,
-    files, 
+    files,
   };
 
-  const response = await safeFetch(`${API_URL}/v1/workflows`, {
+  const response = await safeFetch(`${API_URL}/workflows`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -34,4 +34,4 @@ export const createWorkflow = async (recordId, workflowName, files) => {
   });
 
   return response;
-}
+};
