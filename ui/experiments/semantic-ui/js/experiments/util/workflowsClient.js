@@ -35,3 +35,36 @@ export const createWorkflow = async (recordId, workflowName, files) => {
 
   return response;
 };
+
+export const listRecordWorkflows = async (
+  recordId,
+  skip,
+  limit,
+  statusFilter,
+) => {
+  const API = `http://localhost:8062/api/v1/workflows/${recordId}/list`;
+  const params = new URLSearchParams({
+    skip: skip,
+    limit: limit,
+  });
+
+  if (statusFilter.length > 0) {
+    params.append('status', `(${statusFilter.join(", ")})`)
+  }
+
+  const response = await safeFetch(API + `?${params.toString()}`, {
+    method: "GET",
+  });
+
+  return response;
+};
+
+export const fetchWorkflowDetail = async (workflowName) => {
+  const API = `http://localhost:8062/api/v1/workflows/${workflowName}/detail`;
+
+  const response = await safeFetch(API, {
+    method: "GET",
+  });
+
+  return response;
+};
