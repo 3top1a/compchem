@@ -1,36 +1,56 @@
 import React, { useEffect, useState } from 'react';
-import { 
-    Typography, 
-    Paper, 
-    Grid, 
-    Button, 
-    Checkbox, 
-    FormControlLabel, 
-    FormControl, 
+import {
+    Typography,
+    Paper,
+    Grid,
+    Button,
+    Checkbox,
+    FormControlLabel,
+    FormControl,
     Box,
     Divider,
     Chip,
     Tabs,
-    Tab
+    Tab,
+    Modal,
+    IconButton,
+    CircularProgress,
+    Alert
 } from '@mui/material';
-import { ArrowBack, PlayArrow, Description, History, Schedule, NavigateNext, NavigateBefore } from '@mui/icons-material';
-import { fetchAvailableWorkflows, listRecordWorkflows, fetchWorkflowDetail, createWorkflow } from '../util/workflowsClient';
+import {
+    ArrowBack,
+    PlayArrow,
+    Description,
+    History,
+    Schedule,
+    NavigateNext,
+    NavigateBefore,
+    Receipt,
+    Close
+} from '@mui/icons-material';
+import {
+    fetchAvailableWorkflows,
+    listRecordWorkflows,
+    fetchWorkflowDetail,
+    createWorkflow,
+    fetchWorkflowLogs
+} from '../util/workflowsClient';
 import { useFormContext } from './context';
 
 const FormWorkflowsContainer = () => {
     const { record, remoteFiles } = useFormContext();
     const recordId = record.id;
-    
+
     // State management
     const [currentTab, setCurrentTab] = useState(0);
-    
+
     // Available workflows tab state
-    const [availableWorkflows, setAvailableWorkflows] = useState([]); 
+    const [availableWorkflows, setAvailableWorkflows] = useState([]);
     const [currentView, setCurrentView] = useState('workflows'); // 'workflows' | 'files'
     const [selectedWorkflow, setSelectedWorkflow] = useState(null);
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
-    
+
     // Active workflows tab state
     const [activeWorkflows, setActiveWorkflows] = useState([]);
     const [activeView, setActiveView] = useState('list'); // 'list' | 'detail'
@@ -39,7 +59,13 @@ const FormWorkflowsContainer = () => {
     const [skip, setSkip] = useState(0);
     const [workflowsMetadata, setWorkflowsMetadata] = useState(null);
     const [selectedStatuses, setSelectedStatuses] = useState([]);
-    
+
+    // Logs modal state
+    const [logsModalOpen, setLogsModalOpen] = useState(false);
+    const [workflowLogs, setWorkflowLogs] = useState([]);
+    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+    const [logsError, setLogsError] = useState(null);
+
     useEffect(() => {
         const fetchWorkflows = async () => {
             const response = await fetchAvailableWorkflows(remoteFiles);
@@ -47,7 +73,7 @@ const FormWorkflowsContainer = () => {
                 setAvailableWorkflows(response.data.workflows);
             }
         };
-        
+
         fetchWorkflows();
     }, [remoteFiles]);
 
@@ -61,7 +87,7 @@ const FormWorkflowsContainer = () => {
                 setWorkflowsMetadata(response.data.metadata || null);
             }
         };
-        
+
         if (currentTab === 1) {
             fetchActiveWorkflows();
         }
@@ -94,7 +120,7 @@ const FormWorkflowsContainer = () => {
         // Find the full file object from remoteFiles
         const fileObject = remoteFiles.find(file => file.key === fileKey);
         if (!fileObject) return;
-        
+
         setSelectedFiles(prev => {
             const isSelected = prev.some(f => f.key === fileKey);
             if (isSelected) {
@@ -147,6 +173,35 @@ const FormWorkflowsContainer = () => {
         setWorkflowDetail(null);
     };
 
+    // Logs modal handlers
+    const handleOpenLogsModal = async () => {
+        if (!selectedActiveWorkflow?.metadata?.name) return;
+
+        setLogsModalOpen(true);
+        setIsLoadingLogs(true);
+        setLogsError(null);
+        setWorkflowLogs([]);
+
+        try {
+            const response = await fetchWorkflowLogs(selectedActiveWorkflow.metadata.name);
+            if (response.ok) {
+                setWorkflowLogs(response.data.logs || []);
+            } else {
+                setLogsError(response.error || 'Failed to fetch logs');
+            }
+        } catch (error) {
+            setLogsError('Error fetching logs: ' + error.message);
+        } finally {
+            setIsLoadingLogs(false);
+        }
+    };
+
+    const handleCloseLogsModal = () => {
+        setLogsModalOpen(false);
+        setWorkflowLogs([]);
+        setLogsError(null);
+    };
+
     // Pagination handlers
     const handleNextPage = () => {
         if (workflowsMetadata?.continue) {
@@ -161,10 +216,10 @@ const FormWorkflowsContainer = () => {
     // Status filter handlers
     const handleStatusToggle = (status) => {
         setSelectedStatuses(prev => {
-            const newStatuses = prev.includes(status) 
+            const newStatuses = prev.includes(status)
                 ? prev.filter(s => s !== status)
                 : [...prev, status];
-            
+
             // Reset to first page when filter changes
             setSkip(0);
             return newStatuses;
@@ -200,10 +255,10 @@ const FormWorkflowsContainer = () => {
             <Grid container spacing={2} direction="column">
                 {availableWorkflows.map((workflow, index) => (
                     <Grid item xs={12} key={index}>
-                        <Paper 
-                            elevation={1} 
-                            sx={{ 
-                                p: 2, 
+                        <Paper
+                            elevation={1}
+                            sx={{
+                                p: 2,
                                 cursor: 'pointer',
                                 transition: 'all 0.2s ease-in-out',
                                 '&:hover': {
@@ -222,9 +277,9 @@ const FormWorkflowsContainer = () => {
                                         {workflow.mimetype}
                                     </Typography>
                                     <Box sx={{ mt: 1 }}>
-                                        <Chip 
-                                            size="small" 
-                                            label={`${workflow.files.length} file${workflow.files.length !== 1 ? 's' : ''}`} 
+                                        <Chip
+                                            size="small"
+                                            label={`${workflow.files.length} file${workflow.files.length !== 1 ? 's' : ''}`}
                                             variant="outlined"
                                         />
                                     </Box>
@@ -266,9 +321,9 @@ const FormWorkflowsContainer = () => {
                     Select files to process:
                 </Typography>
                 {selectedFiles.length > 0 && (
-                    <Chip 
-                        size="small" 
-                        label={`${selectedFiles.length} selected`} 
+                    <Chip
+                        size="small"
+                        label={`${selectedFiles.length} selected`}
                         color="primary"
                         variant="outlined"
                     />
@@ -279,9 +334,9 @@ const FormWorkflowsContainer = () => {
                 <Grid container spacing={1} direction="column">
                     {selectedWorkflow?.files.map((file, index) => (
                         <Grid item xs={12} key={index}>
-                            <Paper 
-                                elevation={1} 
-                                sx={{ 
+                            <Paper
+                                elevation={1}
+                                sx={{
                                     p: 2,
                                     backgroundColor: selectedFiles.some(f => f.key === file) ? 'action.selected' : 'background.paper',
                                     cursor: 'pointer',
@@ -294,7 +349,7 @@ const FormWorkflowsContainer = () => {
                             >
                                 <FormControlLabel
                                     control={
-                                        <Checkbox 
+                                        <Checkbox
                                             checked={selectedFiles.some(f => f.key === file)}
                                             onChange={(e) => e.stopPropagation()}
                                         />
@@ -324,8 +379,8 @@ const FormWorkflowsContainer = () => {
                         size="large"
                         disabled={isCreatingWorkflow}
                     >
-                        {isCreatingWorkflow 
-                            ? 'Creating Workflow...' 
+                        {isCreatingWorkflow
+                            ? 'Creating Workflow...'
                             : `Run Workflow (${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''})`
                         }
                     </Button>
@@ -348,9 +403,9 @@ const FormWorkflowsContainer = () => {
                         Filter by Status:
                     </Typography>
                     {selectedStatuses.length > 0 && (
-                        <Chip 
-                            size="small" 
-                            label={`${selectedStatuses.length} selected`} 
+                        <Chip
+                            size="small"
+                            label={`${selectedStatuses.length} selected`}
                             color="primary"
                             variant="outlined"
                         />
@@ -371,8 +426,8 @@ const FormWorkflowsContainer = () => {
                 </Box>
                 {selectedStatuses.length > 0 && (
                     <Box sx={{ mt: 2 }}>
-                        <Button 
-                            size="small" 
+                        <Button
+                            size="small"
                             onClick={() => {
                                 setSelectedStatuses([]);
                                 setSkip(0);
@@ -388,10 +443,10 @@ const FormWorkflowsContainer = () => {
             <Grid container spacing={2} direction="column">
                 {activeWorkflows.map((workflow, index) => (
                     <Grid item xs={12} key={index}>
-                        <Paper 
-                            elevation={1} 
-                            sx={{ 
-                                p: 2, 
+                        <Paper
+                            elevation={1}
+                            sx={{
+                                p: 2,
                                 cursor: 'pointer',
                                 transition: 'all 0.2s ease-in-out',
                                 '&:hover': {
@@ -407,15 +462,15 @@ const FormWorkflowsContainer = () => {
                                         {workflow.metadata.name}
                                     </Typography>
                                     <Box sx={{ mt: 1, display: 'flex', gap: 1, alignItems: 'center' }}>
-                                        <Chip 
-                                            size="small" 
+                                        <Chip
+                                            size="small"
                                             label={workflow.status.phase}
                                             color={getStatusColor(workflow.status.phase)}
                                             variant="outlined"
                                         />
                                         {workflow.status.progress && (
-                                            <Chip 
-                                                size="small" 
+                                            <Chip
+                                                size="small"
                                                 label={`Progress: ${workflow.status.progress}`}
                                                 variant="outlined"
                                             />
@@ -480,26 +535,37 @@ const FormWorkflowsContainer = () => {
     // Render active workflow detail view
     const renderActiveWorkflowDetail = () => (
         <>
-            <Box display="flex" alignItems="center" sx={{ mb: 3 }}>
-                <Button
-                    startIcon={<ArrowBack />}
-                    onClick={handleBackToActiveList}
-                    sx={{ mr: 2 }}
-                >
-                    Back to Active Workflows
-                </Button>
-                <Box>
+            <Box sx={{ mb: 3 }}>
+                {/* Workflow name and status on top */}
+                <Box sx={{ mb: 2 }}>
                     <Typography variant="h6" component="div">
                         {selectedActiveWorkflow?.metadata.name}
                     </Typography>
                     <Box sx={{ mt: 1 }}>
-                        <Chip 
-                            size="small" 
+                        <Chip
+                            size="small"
                             label={selectedActiveWorkflow?.status.phase}
                             color={getStatusColor(selectedActiveWorkflow?.status.phase)}
                             variant="outlined"
                         />
                     </Box>
+                </Box>
+
+                {/* Buttons row */}
+                <Box display="flex" alignItems="center" gap={2}>
+                    <Button
+                        startIcon={<ArrowBack />}
+                        onClick={handleBackToActiveList}
+                    >
+                        Back to Active Workflows
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<Receipt />}
+                        onClick={handleOpenLogsModal}
+                    >
+                        View Logs
+                    </Button>
                 </Box>
             </Box>
 
@@ -576,24 +642,143 @@ const FormWorkflowsContainer = () => {
         </>
     );
 
+    // Render logs modal
+    const renderLogsModal = () => (
+        <Modal
+            open={logsModalOpen}
+            onClose={handleCloseLogsModal}
+            aria-labelledby="workflow-logs-modal"
+            aria-describedby="workflow-logs-content"
+        >
+            <Box sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: '95%',
+                maxWidth: '1400px',
+                maxHeight: '80vh',
+                bgcolor: 'background.paper',
+                boxShadow: 24,
+                p: 0,
+                borderRadius: 1,
+                overflow: 'hidden'
+            }}>
+                {/* Modal Header */}
+                <Box sx={{
+                    p: 2,
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}>
+                    <Box>
+                        <Typography variant="h6" component="h2">
+                            Workflow Logs
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {selectedActiveWorkflow?.metadata.name}
+                        </Typography>
+                    </Box>
+                    <IconButton onClick={handleCloseLogsModal}>
+                        <Close />
+                    </IconButton>
+                </Box>
+
+                {/* Modal Content */}
+                <Box sx={{
+                    p: 2,
+                    maxHeight: 'calc(90vh - 100px)',
+                    overflowY: 'auto'
+                }}>
+                    {isLoadingLogs && (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                            <CircularProgress />
+                        </Box>
+                    )}
+
+                    {logsError && (
+                        <Alert severity="error" sx={{ mb: 2 }}>
+                            {logsError}
+                        </Alert>
+                    )}
+
+                    {!isLoadingLogs && !logsError && workflowLogs.length === 0 && (
+                        <Box sx={{ textAlign: 'center', py: 4 }}>
+                            <Typography variant="body2" color="text.secondary">
+                                No logs found for this workflow
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {!isLoadingLogs && workflowLogs.length > 0 && (
+                        <Box>
+                            <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                                {workflowLogs.length} log entries
+                            </Typography>
+                            <Box
+                                sx={{
+                                    backgroundColor: '#1e1e1e',
+                                    color: '#ffffff',
+                                    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                                    fontSize: '0.75rem',
+                                    lineHeight: 1.4,
+                                    p: 2,
+                                    borderRadius: 1,
+                                    maxHeight: 'calc(90vh - 300px)',
+                                    overflowY: 'auto',
+                                    border: '1px solid #333'
+                                }}
+                            >
+                                <Box component="pre" sx={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                    {workflowLogs.map((logEntry, index) => {
+                                        // Extract podName and content directly from the correct structure
+                                        const podName = logEntry.result?.podName || 'unknown';
+                                        const content = logEntry.result?.content || '';
+
+                                        // Format as "podName: content" or just "podName:" if no content
+                                        const formattedLine = content
+                                            ? `${podName}: ${content}`
+                                            : `${podName}:`;
+
+                                        return (
+                                            <Box key={index} component="span">
+                                                {formattedLine}
+                                                {'\n'}
+                                            </Box>
+                                        );
+                                    })}
+                                </Box>
+                            </Box>
+                        </Box>
+                    )}
+                </Box>
+            </Box>
+        </Modal>
+    );
+
     return (
         <Paper elevation={3} sx={{ p: 3 }}>
             <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 3 }}>
                 <Tab label="Available Workflows" />
                 <Tab label="Active Workflows" />
             </Tabs>
-            
+
             {currentTab === 0 && (
                 <>
                     {currentView === 'workflows' ? renderWorkflowList() : renderFileSelection()}
                 </>
             )}
-            
+
             {currentTab === 1 && (
                 <>
                     {activeView === 'list' ? renderActiveWorkflowsList() : renderActiveWorkflowDetail()}
                 </>
             )}
+
+            {/* Logs Modal */}
+            {renderLogsModal()}
         </Paper>
     );
 };

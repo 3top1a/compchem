@@ -42,14 +42,14 @@ export const listRecordWorkflows = async (
   limit,
   statusFilter,
 ) => {
-  const API = `http://localhost:8062/api/v1/workflows/${recordId}/list`;
+  const API = `${API_URL}/workflows/${recordId}/list`;
   const params = new URLSearchParams({
     skip: skip,
     limit: limit,
   });
 
   if (statusFilter.length > 0) {
-    params.append('status', `(${statusFilter.join(", ")})`)
+    params.append("status", `(${statusFilter.join(", ")})`);
   }
 
   const response = await safeFetch(API + `?${params.toString()}`, {
@@ -60,7 +60,17 @@ export const listRecordWorkflows = async (
 };
 
 export const fetchWorkflowDetail = async (workflowName) => {
-  const API = `http://localhost:8062/api/v1/workflows/${workflowName}/detail`;
+  const API = `${API_URL}/workflows/${workflowName}/detail`;
+
+  const response = await safeFetch(API, {
+    method: "GET",
+  });
+
+  return response;
+};
+
+export const fetchWorkflowLogs = async (workflowName) => {
+  const API = `${API_URL}/workflows/${workflowName}/logs`;
 
   const response = await safeFetch(API, {
     method: "GET",
