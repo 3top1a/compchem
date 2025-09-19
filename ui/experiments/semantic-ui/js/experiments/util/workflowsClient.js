@@ -2,9 +2,27 @@ import { safeFetch } from "./safeFetch";
 
 const API_URL = "https://localhost:5000/api";
 
-export const fetchAvailableWorkflows = async (files) => {
+export const runAllWorkflows = async (recordId, files) => {
   const data = {
     files,
+    recordId,
+  };
+
+  const response = await safeFetch(`${API_URL}/workflows/all`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  return response;
+};
+
+export const fetchAvailableWorkflows = async (recoridId, files) => {
+  const data = {
+    files,
+    recordId,
   };
 
   const response = await safeFetch(`${API_URL}/workflows/available`, {

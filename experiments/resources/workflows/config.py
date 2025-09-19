@@ -1,4 +1,4 @@
-from invenio_records_resources.resources import RecordResourceConfig 
+from invenio_records_resources.resources import RecordResourceConfig
 
 
 class ExperimentsWorkflowResourceConfig(RecordResourceConfig):
@@ -9,8 +9,9 @@ class ExperimentsWorkflowResourceConfig(RecordResourceConfig):
 
     routes = {
         "available": "/available",
-        "create": "/",
+        "create": "/<record_id>",
+        "create_all": "/<record_id>/all",
         "list": "/<record_id>/list",
         "detail": "/<workflow_name>/detail",
-        "logs": "/<workflow_name>/logs"
+        "logs": "/<workflow_name>/logs",
     }
