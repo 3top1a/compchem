@@ -26,6 +26,8 @@ from experiments.resources.records.config import ExperimentsResourceConfig
 from experiments.resources.records.resource import ExperimentsResource
 from experiments.resources.workflows.config import ExperimentsWorkflowResourceConfig
 from experiments.resources.workflows.resource import ExperimentsWorkflowResource
+from experiments.resources.workflows.files_config import ExperimentsWorkflowFilesResourceConfig
+from experiments.resources.workflows.files_resource import ExperimentsWorkflowFilesResource
 from experiments.services.files.config import (
     ExperimentsFileDraftServiceConfig,
     ExperimentsFileServiceConfig,
@@ -36,6 +38,10 @@ from experiments.services.files.service import (
 )
 from experiments.services.records.config import ExperimentsServiceConfig
 from experiments.services.records.service import ExperimentsService
+from experiments.services.worfklows.config import ExperimentsWorkflowServiceConfig
+from experiments.services.worfklows.service import ExperimentsWorkflowService
+from experiments.services.worfklows.files_config import ExperimentsWorkflowFilesServiceConfig
+from experiments.services.worfklows.files_service import ExperimentsWorkflowFilesService
 
 EXPERIMENTS_RECORD_RESOURCE_CONFIG = ExperimentsResourceConfig
 
@@ -119,3 +125,15 @@ EXPERIMENTS_DRAFT_FILES_SERVICE_CLASS = ExperimentsFileDraftService
 EXPERIMENTS_WORKFLOW_RESOURCE_CLASS = ExperimentsWorkflowResource
 
 EXPERIMENTS_WORKFLOW_RESOURCE_CONFIG = ExperimentsWorkflowResourceConfig
+
+EXPERIMENTS_WORKFLOW_SERVICE_CLASS = ExperimentsWorkflowService
+
+EXPERIMENTS_WORKFLOW_SERVICE_CONFIG = ExperimentsWorkflowServiceConfig
+
+EXPERIMENTS_WORKFLOW_FILES_RESOURCE_CLASS = ExperimentsWorkflowFilesResource
+
+EXPERIMENTS_WORKFLOW_FILES_RESOURCE_CONFIG = ExperimentsWorkflowFilesResourceConfig
+
+EXPERIMENTS_WORKFLOW_FILES_SERVICE_CLASS = ExperimentsWorkflowFilesService
+
+EXPERIMENTS_WORKFLOW_FILES_SERVICE_CONFIG = ExperimentsWorkflowFilesServiceConfig

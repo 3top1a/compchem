@@ -5,10 +5,9 @@ const API_URL = "https://localhost:5000/api";
 export const runAllWorkflows = async (recordId, files) => {
   const data = {
     files,
-    recordId,
   };
 
-  const response = await safeFetch(`${API_URL}/workflows/all`, {
+  const response = await safeFetch(`${API_URL}/workflows/${recordId}/all`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -19,10 +18,9 @@ export const runAllWorkflows = async (recordId, files) => {
   return response;
 };
 
-export const fetchAvailableWorkflows = async (recoridId, files) => {
+export const fetchAvailableWorkflows = async (files) => {
   const data = {
     files,
-    recordId,
   };
 
   const response = await safeFetch(`${API_URL}/workflows/available`, {
@@ -43,7 +41,7 @@ export const createWorkflow = async (recordId, workflowName, files) => {
     files,
   };
 
-  const response = await safeFetch(`${API_URL}/workflows`, {
+  const response = await safeFetch(`${API_URL}/workflows/${recordId}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

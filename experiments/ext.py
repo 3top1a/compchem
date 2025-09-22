@@ -26,6 +26,7 @@ class ExperimentsExt:
     def register_flask_extension(self, app):
 
         app.extensions["experiments"] = self
+        app.extensions["experiments-workflows"] = self
 
     def init_config(self, app):
         """Initialize configuration."""
@@ -175,8 +176,25 @@ class ExperimentsExt:
         )
 
     @cached_property
+    def service_workflows(self):
+        return config.EXPERIMENTS_WORKFLOW_SERVICE_CLASS(
+            config=config.EXPERIMENTS_WORKFLOW_SERVICE_CONFIG(),
+        )
+
+    @cached_property
     def resource_workflows(self):
         return config.EXPERIMENTS_WORKFLOW_RESOURCE_CLASS(
-            service=None,
             config=config.EXPERIMENTS_WORKFLOW_RESOURCE_CONFIG(),
+        )
+
+    @cached_property
+    def service_workflow_files(self):
+        return config.EXPERIMENTS_WORKFLOW_FILES_SERVICE_CLASS(
+            config=config.EXPERIMENTS_WORKFLOW_FILES_SERVICE_CONFIG(),
+        )
+
+    @cached_property
+    def resource_workflow_files(self):
+        return config.EXPERIMENTS_WORKFLOW_FILES_RESOURCE_CLASS(
+            config=config.EXPERIMENTS_WORKFLOW_FILES_RESOURCE_CONFIG(),
         )

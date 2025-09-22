@@ -1,0 +1,200 @@
+import json
+import time
+from typing import Any, Dict
+
+import requests
+from flask import current_app
+from invenio_db import db
+from invenio_records_resources.services import Service
+
+from experiments.records.models import ExperimentsWorkflowContext
+
+
+class ExperimentsWorkflowService(Service):
+    """Stateless service for workflow operations."""
+
+    FILEPROCESSOR_URL = "http://localhost:8062/api"
+    ARGO_URL = "https://localhost:2746/api"
+
+    def get_available_workflows(self, identity, data):
+        """Get available workflows."""
+        try:
+            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/available"
+            response = requests.post(
+                go_api_url,
+                json=data,
+                headers={"Content-Type": "application/json"},
+                timeout=30,
+            )
+
+            return response.json(), response.status_code
+
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
+        except Exception as e:
+            return {"error": f"Internal server error: {str(e)}"}, 500
+
+    def create_workflow(self, identity, record_id, data):
+        """Create a workflow for a specific record."""
+        try:
+            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/{record_id}"
+            response = requests.post(
+                go_api_url,
+                json=data,
+                headers={"Content-Type": "application/json"},
+                timeout=30,
+            )
+
+            response_data = response.json()
+
+            # Register workflow context if successful response contains required fields
+            if (
+                response.status_code == 201
+                and "workflowName" in response_data
+                and "secretKey" in response_data
+            ):
+                try:
+                    self._register_workflow_context(
+                        record_id, response_data["workflowName"], response_data["secretKey"]
+                    )
+                except Exception as e:
+                    db.session.rollback()
+                    return {
+                        "error": f"Workflow created but failed to register context: {str(e)}",
+                        "workflow_data": response_data
+                    }, 500
+
+            return response_data, response.status_code
+
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
+        except Exception as e:
+            return {"error": f"Internal server error: {str(e)}"}, 500
+
+    def create_all_workflows(self, identity, record_id, data):
+        """Create all workflows for a specific record."""
+        try:
+            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/{record_id}/all"
+            response = requests.post(
+                go_api_url,
+                json=data,
+                headers={"Content-Type": "application/json"},
+                timeout=30,
+            )
+
+            response_data = response.json()
+
+            # Register workflow contexts if successful response contains workflowContexts array
+            if response.status_code == 201 and "workflowContexts" in response_data:
+                try:
+                    for context in response_data["workflowContexts"]:
+                        if "workflowName" in context and "secretKey" in context:
+                            self._register_workflow_context(
+                                record_id, context["workflowName"], context["secretKey"]
+                            )
+                except Exception as e:
+                    db.session.rollback()
+                    return {
+                        "error": f"Workflows created but failed to register contexts: {str(e)}",
+                        "workflow_data": response_data
+                    }, 500
+
+            return response_data, response.status_code
+
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
+        except Exception as e:
+            return {"error": f"Internal server error: {str(e)}"}, 500
+
+    def list_workflows(self, identity, record_id, skip=0, limit=5, status_filter=None):
+        """List workflows for a specific record."""
+        try:
+            params: Dict[str, Any] = {"skip": skip, "limit": limit}
+            if status_filter:
+                params["status"] = status_filter
+
+            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/{record_id}/list"
+            response = requests.get(go_api_url, params=params, timeout=30)
+
+            return response.json(), response.status_code
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
+        except Exception as e:
+            return {"error": f"Internal server error: {str(e)}"}, 500
+
+    def get_workflow_detail(self, identity, workflow_name):
+        """Get workflow detail."""
+        try:
+            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/{workflow_name}/detail"
+            response = requests.get(go_api_url, timeout=30)
+
+            return response.json(), response.status_code
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
+        except Exception as e:
+            return {"error": f"Internal server error: {str(e)}"}, 500
+
+    def get_workflow_logs(self, identity, workflow_name):
+        """Get workflow logs from Argo."""
+        try:
+            # Build Argo API URL with fixed parameters
+            argo_url = f"{self.ARGO_URL}/v1/workflows/argo/{workflow_name}/log"
+            params = {
+                "logOptions.container": "main",
+                "grep": "",
+                "logOptions.follow": "false",  # Single request, no streaming
+            }
+
+            # Make request to Argo server
+            response = requests.get(
+                argo_url,
+                params=params,
+                stream=True,
+                timeout=30,
+                verify=False,  # Add this if using self-signed certs
+            )
+
+            if response.status_code != 200:
+                return {
+                    "error": f"Argo server returned status {response.status_code}"
+                }, response.status_code
+
+            # Collect logs from response - each line is a JSON object
+            logs = []
+            start_time = time.time()
+            timeout_seconds = 30
+
+            for line in response.iter_lines(decode_unicode=True):
+                # Check timeout
+                if time.time() - start_time > timeout_seconds:
+                    break
+
+                if line and line.strip():
+                    try:
+                        # Each line is a JSON object - parse it directly
+                        log_entry = json.loads(line.strip())
+                        logs.append(log_entry)
+                    except json.JSONDecodeError:
+                        # Skip malformed JSON
+                        continue
+
+            return {
+                "logs": logs,
+                "total_entries": len(logs),
+                "workflow_name": workflow_name,
+            }, 200
+
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Failed to connect to Argo server: {str(e)}"}, 502
+        except Exception as e:
+            return {"error": f"Internal server error: {str(e)}"}, 500
+
+    def _register_workflow_context(self, experiment_id, workflow_name, secret_key):
+        """Register workflow context in the database."""
+        new_context = ExperimentsWorkflowContext(
+            workflow_name=workflow_name,
+            secret_key=secret_key,
+            experiment_id=experiment_id,
+        )
+        db.session.add(new_context)
+        db.session.commit()
