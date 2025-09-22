@@ -1,4 +1,4 @@
-from flask import current_app, jsonify, request
+from flask import current_app, g, jsonify, request
 from flask_resources import Resource, route
 
 
@@ -36,7 +36,10 @@ class ExperimentsWorkflowFilesResource(Resource):
             return jsonify({"error": "file_keys must be a non-empty list"}), 400
 
         result, status_code = self.service.read_files(
-            record_id=record_id, secret_key=secret_key, file_keys=file_keys
+            record_id=record_id,
+            identity=g.identity,
+            secret_key=secret_key,
+            file_keys=file_keys,
         )
 
         return jsonify(result), status_code
@@ -63,4 +66,3 @@ class ExperimentsWorkflowFilesResource(Resource):
         )
 
         return jsonify(result), status_code
-
