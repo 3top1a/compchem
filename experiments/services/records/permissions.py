@@ -1,5 +1,4 @@
 from invenio_records_permissions import RecordPermissionPolicy
-from invenio_records_permissions.generators import AuthenticatedUser
 
 # from invenio_records_permissions.generators import SystemProcess, AnyUser
 
@@ -9,21 +8,21 @@ class ExperimentsPermissionPolicy(RecordPermissionPolicy):
     Values in this class will be merged with permission presets.
     """
 
-    can_search = [AuthenticatedUser()]
-    can_read = [AuthenticatedUser()]
-    can_create = [AuthenticatedUser()]
-    can_update = [AuthenticatedUser()]
-    can_delete = [AuthenticatedUser()]
-    can_manage = [AuthenticatedUser()]
-    can_read_files = [AuthenticatedUser()]
-    can_update_files = [AuthenticatedUser()]
+    can_search = []
+    can_read = []
+    can_create = []
+    can_update = []
+    can_delete = []
+    can_manage = []
+    can_read_files = []
+    can_update_files = []
 
     # Additional permissions that might be needed for full functionality
-    can_publish = [AuthenticatedUser()]
-    can_edit = [AuthenticatedUser()]
-    can_review = [AuthenticatedUser()]
-    can_read_draft = [AuthenticatedUser()]
-    can_update_draft = [AuthenticatedUser()]
-    can_delete_draft = [AuthenticatedUser()]
-    can_new_version = [AuthenticatedUser()]
-    can_search_versions = [AuthenticatedUser()]
+    can_publish = []
+    can_edit = []
+    can_review = []
+    can_read_draft = []
+    can_update_draft = []
+    can_delete_draft = []
+    can_new_version = []
+    can_search_versions = []

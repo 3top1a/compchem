@@ -1,24 +1,19 @@
-import logging
 import mimetypes
 import sys
-from typing import Dict, List
+from typing import Dict
 
 from flask import current_app
 from invenio_records_resources.services import (
+    FileService,
     LinksTemplate,
-    Service,
     ServiceSchemaWrapper,
 )
 
 from experiments.records.models import ExperimentsWorkflowContext
 
 
-class ExperimentsWorkflowFilesService(Service):
+class ExperimentsWorkflowFilesService(FileService):
     """Service for anonymous file access using workflow secret keys."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     @property
     def record_cls(self):
@@ -53,93 +48,37 @@ class ExperimentsWorkflowFilesService(Service):
 
     def authenticate_request(self, record_id: str, secret_key: str) -> bool:
         """Verify secret key for the given record."""
-        self.logger.info(
-            f"Authenticating request for record_id={record_id} with secret_key=***"
-        )
         try:
             context = ExperimentsWorkflowContext.query.filter_by(
                 experiment_id=record_id, secret_key=secret_key
             ).first()
 
             if context is not None:
-                self.logger.info(f"Authentication successful for record_id={record_id}")
                 return True
             else:
-                self.logger.warning(
-                    f"Authentication failed: No context found for record_id={record_id}"
-                )
                 return False
-        except Exception as e:
-            self.logger.error(
-                f"Authentication error for record_id={record_id}: {str(e)}",
-                exc_info=True,
-            )
+        except Exception:
             return False
 
-    def read_files(
-        self, identity, record_id: str, secret_key: str, file_keys: List[str]
+    def read_file(
+        self, identity, record_id: str, secret_key: str, file_key: str
     ) -> tuple:
         """Generate S3 signed URLs for reading files."""
-        self.logger.info(
-            f"read_files called for record_id={record_id}, file_keys={file_keys}"
-        )
 
         # Authenticate request
+        print("FILE KEY IN SERVICE: " + file_key, file=sys.stderr)
         if not self.authenticate_request(record_id, secret_key):
-            self.logger.warning(
-                f"Authentication failed for read_files request, record_id={record_id}"
-            )
             return {"error": "Invalid secret key or record ID"}, 403
 
-        try:
-            # Query draft metadata directly from database
-            record = self.record_cls.pid.resolve(record_id, registered_only=False)
-
-            # this has no implementation but is used for some reason, why?
-            # self.run_components("list_files", record_id, identity, record)
-
-            files = self.file_result_list(
-                self,
-                identity,
-                results=record.files.values(),
-                record=record,
-                links_tpl=self.file_links_list_tpl(record_id),
-                links_item_tpl=self.file_links_item_tpl(record_id),
-            )
-
-            file_urls = {}
-            errors = {}
-
-            print("FILESS!!!!!", file=sys.stderr)
-            print(files.to_dict(), file=sys.stderr)
-
-            response = {"files": files}
-            if errors:
-                response["errors"] = errors
-
-            self.logger.info(
-                f"read_files completed: {len(file_urls)} file locations returned, {len(errors)} errors"
-            )
-            return response, 200 if file_urls else 404
-
-        except Exception as e:
-            self.logger.error(
-                f"Failed to read files for record_id={record_id}: {str(e)}",
-                exc_info=True,
-            )
-            return {"error": f"Failed to read files: {str(e)}"}, 500
+        return self.get_file_content(
+            identity=identity, id_=record_id, file_key=file_key
+        )
 
     def write_files(self, record_id: str, secret_key: str, files_data: Dict) -> tuple:
         """Write files to S3 for the experiment."""
-        self.logger.info(
-            f"write_files called for record_id={record_id}, files={list(files_data.keys())}"
-        )
 
         # Authenticate request
         if not self.authenticate_request(record_id, secret_key):
-            self.logger.warning(
-                f"Authentication failed for write_files request, record_id={record_id}"
-            )
             return {"error": "Invalid secret key or record ID"}, 403
 
         try:
@@ -170,25 +109,15 @@ class ExperimentsWorkflowFilesService(Service):
                     }
 
                 except Exception as e:
-                    self.logger.error(
-                        f"Failed to write file {file_key}: {str(e)}", exc_info=True
-                    )
                     errors[file_key] = f"Failed to write file: {str(e)}"
 
             response = {"written_files": written_files}
             if errors:
                 response["errors"] = errors
 
-            self.logger.info(
-                f"write_files completed: {len(written_files)} files written, {len(errors)} errors"
-            )
             return response, 200 if written_files else 400
 
         except Exception as e:
-            self.logger.error(
-                f"Failed to write files for record_id={record_id}: {str(e)}",
-                exc_info=True,
-            )
             return {"error": f"Failed to write files: {str(e)}"}, 500
 
     def _write_file_to_storage(
@@ -230,7 +159,4 @@ class ExperimentsWorkflowFilesService(Service):
             return commit_result
 
         except Exception as e:
-            self.logger.error(
-                f"Failed to write {file_key} to storage: {str(e)}", exc_info=True
-            )
             raise Exception(f"Failed to write to storage: {str(e)}")
