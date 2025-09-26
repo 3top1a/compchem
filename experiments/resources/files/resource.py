@@ -52,30 +52,7 @@ class ExperimentsFileDraftResource(FileResource):
         """Create the URL rules for the workflow files resource."""
         routes = self.config.routes
 
-        url_rules = [
-            route("GET", routes["list"], self.search),
-            route("GET", routes["item"], self.read),
-            route("GET", routes["item-content"], self.read_content),
-        ]
-        if self.config.allow_archive_download:
-            url_rules += [
-                route("GET", routes["list-archive"], self.read_archive),
-            ]
-        if self.config.allow_upload:
-            url_rules += [
-                route("POST", routes["list"], self.create),
-                route("DELETE", routes["list"], self.delete_all),
-                route("PUT", routes["item"], self.update),
-                route("DELETE", routes["item"], self.delete),
-                route("POST", routes["item-commit"], self.create_commit),
-                route("PUT", routes["item-content"], self.update_content),
-                route(
-                    "PUT",
-                    routes["item-multipart-content"],
-                    self.upload_multipart_content,
-                ),
-            ]
-
+        url_rules = super().create_url_rules()
         url_rules += [
             route(
                 "GET",

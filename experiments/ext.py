@@ -183,16 +183,3 @@ class ExperimentsExt:
         return config.EXPERIMENTS_WORKFLOW_RESOURCE_CLASS(
             config=config.EXPERIMENTS_WORKFLOW_RESOURCE_CONFIG(),
         )
-
-    @cached_property
-    def service_workflow_files(self):
-        return config.EXPERIMENTS_WORKFLOW_FILES_SERVICE_CLASS(
-            config=config.EXPERIMENTS_WORKFLOW_FILES_SERVICE_CONFIG(),
-        )
-
-    @cached_property
-    def resource_workflow_files(self):
-        return config.EXPERIMENTS_WORKFLOW_FILES_RESOURCE_CLASS(
-            service=self.service_workflow_files,
-            config=config.EXPERIMENTS_WORKFLOW_FILES_RESOURCE_CONFIG(),
-        )
