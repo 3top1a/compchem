@@ -1,9 +1,7 @@
 import json
-import time
 from typing import Any, Dict
 
 import requests
-from flask import current_app
 from invenio_db import db
 from invenio_records_resources.services import Service
 
@@ -47,7 +45,6 @@ class ExperimentsWorkflowService(Service):
 
             response_data = response.json()
 
-            # Register workflow context if successful response contains required fields
             if (
                 response.status_code == 201
                 and "workflowName" in response_data
@@ -55,13 +52,15 @@ class ExperimentsWorkflowService(Service):
             ):
                 try:
                     self._register_workflow_context(
-                        record_id, response_data["workflowName"], response_data["secretKey"]
+                        record_id,
+                        response_data["workflowName"],
+                        response_data["secretKey"],
                     )
                 except Exception as e:
                     db.session.rollback()
                     return {
                         "error": f"Workflow created but failed to register context: {str(e)}",
-                        "workflow_data": response_data
+                        "workflow_data": response_data,
                     }, 500
 
             return response_data, response.status_code
@@ -84,7 +83,6 @@ class ExperimentsWorkflowService(Service):
 
             response_data = response.json()
 
-            # Register workflow contexts if successful response contains workflowContexts array
             if response.status_code == 201 and "workflowContexts" in response_data:
                 try:
                     for context in response_data["workflowContexts"]:
@@ -96,7 +94,7 @@ class ExperimentsWorkflowService(Service):
                     db.session.rollback()
                     return {
                         "error": f"Workflows created but failed to register contexts: {str(e)}",
-                        "workflow_data": response_data
+                        "workflow_data": response_data,
                     }, 500
 
             return response_data, response.status_code
@@ -137,21 +135,19 @@ class ExperimentsWorkflowService(Service):
     def get_workflow_logs(self, identity, workflow_name):
         """Get workflow logs from Argo."""
         try:
-            # Build Argo API URL with fixed parameters
             argo_url = f"{self.ARGO_URL}/v1/workflows/argo/{workflow_name}/log"
             params = {
                 "logOptions.container": "main",
                 "grep": "",
-                "logOptions.follow": "false",  # Single request, no streaming
+                "logOptions.follow": "false",
             }
 
-            # Make request to Argo server
             response = requests.get(
                 argo_url,
                 params=params,
                 stream=True,
                 timeout=30,
-                verify=False,  # Add this if using self-signed certs
+                verify=False,  # todo: certs?
             )
 
             if response.status_code != 200:
@@ -159,24 +155,12 @@ class ExperimentsWorkflowService(Service):
                     "error": f"Argo server returned status {response.status_code}"
                 }, response.status_code
 
-            # Collect logs from response - each line is a JSON object
             logs = []
-            start_time = time.time()
-            timeout_seconds = 30
 
             for line in response.iter_lines(decode_unicode=True):
-                # Check timeout
-                if time.time() - start_time > timeout_seconds:
-                    break
-
                 if line and line.strip():
-                    try:
-                        # Each line is a JSON object - parse it directly
-                        log_entry = json.loads(line.strip())
-                        logs.append(log_entry)
-                    except json.JSONDecodeError:
-                        # Skip malformed JSON
-                        continue
+                    log_entry = json.loads(line.strip())
+                    logs.append(log_entry)
 
             return {
                 "logs": logs,
