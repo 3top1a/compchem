@@ -14,4 +14,5 @@ class ExperimentsWorkflowResourceConfig(RecordResourceConfig):
         "list": "/<record_id>/list",
         "detail": "/<workflow_name>/detail",
         "logs": "/<workflow_name>/logs",
+        "delete_context": "/<workflow_name>/context",
     }

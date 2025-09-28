@@ -173,6 +173,29 @@ class ExperimentsWorkflowService(Service):
         except Exception as e:
             return {"error": f"Internal server error: {str(e)}"}, 500
 
+    def remove_workflow_context(self, identity, workflow_name, secret_key):
+        """Remove workflow context from the database."""
+        try:
+            if not workflow_name or not secret_key:
+                return {"error": "workflow_name and secret_key are required"}, 400
+
+            context = ExperimentsWorkflowContext.query.filter_by(
+                workflow_name=workflow_name,
+                secret_key=secret_key
+            ).first()
+
+            if not context:
+                return {"error": "Workflow context not found or invalid secret key"}, 404
+
+            db.session.delete(context)
+            db.session.commit()
+
+            return {"message": "Workflow context removed successfully"}, 200
+
+        except Exception as e:
+            db.session.rollback()
+            return {"error": f"Failed to remove workflow context: {str(e)}"}, 500
+
     def _register_workflow_context(self, experiment_id, workflow_name, secret_key):
         """Register workflow context in the database."""
         new_context = ExperimentsWorkflowContext(

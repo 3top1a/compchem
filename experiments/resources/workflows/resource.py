@@ -20,6 +20,7 @@ class ExperimentsWorkflowResource(Resource):
             route("GET", routes["list"], self.get_list_workflows),
             route("GET", routes["detail"], self.get_workflow_detail),
             route("GET", routes["logs"], self.get_workflow_logs),
+            route("DELETE", routes["delete_context"], self.delete_workflow_context),
         ]
 
     def post_available(self):
@@ -94,5 +95,17 @@ class ExperimentsWorkflowResource(Resource):
         workflow_name = request.view_args.get("workflow_name")
         result, status_code = self.service.get_workflow_logs(
             identity=None, workflow_name=workflow_name
+        )
+        return jsonify(result), status_code
+
+    def delete_workflow_context(self):
+        """Remove context of workflow"""
+        if request.view_args is None:
+            return jsonify({"error": "request view args must be defined"}), 400
+
+        workflow_name = request.view_args.get("workflow_name")
+        secret_key = request.args.get("secret_key")
+        result, status_code = self.service.remove_workflow_context(
+            identity=None, workflow_name=workflow_name, secret_key=secret_key
         )
         return jsonify(result), status_code

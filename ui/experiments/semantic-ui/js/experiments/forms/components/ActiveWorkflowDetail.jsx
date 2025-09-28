@@ -115,7 +115,6 @@ const ActiveWorkflowDetail = ({ selectedActiveWorkflow, onBack }) => {
                 borderRadius: 1,
                 overflow: 'hidden'
             }}>
-                {/* Modal Header */}
                 <Box sx={{
                     p: 2,
                     borderBottom: 1,
