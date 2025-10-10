@@ -21,6 +21,7 @@ const FormWorkflowsContainer = () => {
     const { record, remoteFiles } = useFormContext();
     const recordId = record.id;
 
+    const [workflowsEnabled, setWorkflowsEnabled] = useState(true);
     const [currentTab, setCurrentTab] = useState(0);
     const [currentView, setCurrentView] = useState('workflows'); // 'workflows' | 'files'
     const [activeView, setActiveView] = useState('list'); // 'list' | 'detail'
@@ -52,6 +53,10 @@ const FormWorkflowsContainer = () => {
         setSelectedActiveWorkflow(null);
     };
 
+    if (!workflowsEnabled) {
+        return <></>;
+    }
+
     return (
         <Paper elevation={3} sx={{ p: 3 }}>
             <Tabs value={currentTab} onChange={handleTabChange(setCurrentTab, setCurrentView, setActiveView)} sx={{ mb: 3 }}>
@@ -65,6 +70,7 @@ const FormWorkflowsContainer = () => {
                         <AvailableWorkflowsList
                             remoteFiles={remoteFiles}
                             onWorkflowSelect={handleWorkflowSelect}
+                            setWorkflowsEnabled={setWorkflowsEnabled}
                         />
                     ) : (
                         <FileSelection

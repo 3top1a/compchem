@@ -15,7 +15,7 @@ const handleWorkflowSelect = (setSelectedWorkflow, onWorkflowSelect) =>
         onWorkflowSelect(workflow);
     };
 
-const AvailableWorkflowsList = ({ remoteFiles, onWorkflowSelect }) => {
+const AvailableWorkflowsList = ({ remoteFiles, onWorkflowSelect, setWorkflowsEnabled }) => {
     const [availableWorkflows, setAvailableWorkflows] = useState([]);
     const [selectedWorkflow, setSelectedWorkflow] = useState(null);
 
@@ -23,7 +23,11 @@ const AvailableWorkflowsList = ({ remoteFiles, onWorkflowSelect }) => {
         const fetchWorkflows = async () => {
             const response = await fetchAvailableWorkflows(remoteFiles);
             if (response.ok) {
+                setWorkflowsEnabled(true);
                 setAvailableWorkflows(response.data.workflows);
+            } else {
+                setWorkflowsEnabled(false);
+                setAvailableWorkflows([]);
             }
         };
 

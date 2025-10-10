@@ -1,7 +1,9 @@
 import json
+import sys
 from typing import Any, Dict
 
 import requests
+from flask import current_app
 from invenio_db import db
 from invenio_records_resources.services import Service
 
@@ -11,13 +13,37 @@ from experiments.records.models import ExperimentsWorkflowContext
 class ExperimentsWorkflowService(Service):
     """Stateless service for workflow operations."""
 
-    FILEPROCESSOR_URL = "http://localhost:8062/api"
-    ARGO_URL = "https://localhost:2746/api"
+    @property
+    def fileprocessor_url(self):
+        """Get the fileprocessor URL from config."""
+        return current_app.config.get("FILEPROCESSOR_URL")
+
+    @property
+    def argo_url(self):
+        """Get the Argo workflows URL from config."""
+        print(current_app.config, file=sys.stderr)
+        return current_app.config.get("ARGO_WORKFLOWS_URL")
+
+    def _check_workflows_enabled(self):
+        """Check if workflows are enabled by verifying required URLs are configured."""
+        if not self.fileprocessor_url or not self.argo_url:
+            return (
+                False,
+                {"error": "Workflows are not enabled - missing configuration"},
+                503,
+            )
+        return True, None, None
 
     def get_available_workflows(self, identity, data):
         """Get available workflows."""
+        enabled, error_response, status_code = self._check_workflows_enabled()
+        if not enabled:
+            return error_response, status_code
+
+        self.check_permission(identity, "get_available_workflows")
+
         try:
-            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/available"
+            go_api_url = f"{self.fileprocessor_url}/v1/workflows/available"
             response = requests.post(
                 go_api_url,
                 json=data,
@@ -34,8 +60,14 @@ class ExperimentsWorkflowService(Service):
 
     def create_workflow(self, identity, record_id, data):
         """Create a workflow for a specific record."""
+        enabled, error_response, status_code = self._check_workflows_enabled()
+        if not enabled:
+            return error_response, status_code
+
+        self.check_permission(identity, "create_workflow")
+
         try:
-            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/{record_id}"
+            go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}"
             response = requests.post(
                 go_api_url,
                 json=data,
@@ -72,8 +104,14 @@ class ExperimentsWorkflowService(Service):
 
     def create_all_workflows(self, identity, record_id, data):
         """Create all workflows for a specific record."""
+        enabled, error_response, status_code = self._check_workflows_enabled()
+        if not enabled:
+            return error_response, status_code
+
+        self.check_permission(identity, "create_all_workflows")
+
         try:
-            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/{record_id}/all"
+            go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}/all"
             response = requests.post(
                 go_api_url,
                 json=data,
@@ -106,12 +144,18 @@ class ExperimentsWorkflowService(Service):
 
     def list_workflows(self, identity, record_id, skip=0, limit=5, status_filter=None):
         """List workflows for a specific record."""
+        enabled, error_response, status_code = self._check_workflows_enabled()
+        if not enabled:
+            return error_response, status_code
+
+        self.check_permission(identity, "list_workflows")
+
         try:
             params: Dict[str, Any] = {"skip": skip, "limit": limit}
             if status_filter:
                 params["status"] = status_filter
 
-            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/{record_id}/list"
+            go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}/list"
             response = requests.get(go_api_url, params=params, timeout=30)
 
             return response.json(), response.status_code
@@ -122,8 +166,14 @@ class ExperimentsWorkflowService(Service):
 
     def get_workflow_detail(self, identity, workflow_name):
         """Get workflow detail."""
+        enabled, error_response, status_code = self._check_workflows_enabled()
+        if not enabled:
+            return error_response, status_code
+
+        self.check_permission(identity, "get_workflow_detail")
+
         try:
-            go_api_url = f"{self.FILEPROCESSOR_URL}/v1/workflows/{workflow_name}/detail"
+            go_api_url = f"{self.fileprocessor_url}/v1/workflows/{workflow_name}/detail"
             response = requests.get(go_api_url, timeout=30)
 
             return response.json(), response.status_code
@@ -134,8 +184,14 @@ class ExperimentsWorkflowService(Service):
 
     def get_workflow_logs(self, identity, workflow_name):
         """Get workflow logs from Argo."""
+        enabled, error_response, status_code = self._check_workflows_enabled()
+        if not enabled:
+            return error_response, status_code
+
+        self.check_permission(identity, "get_workflow_logs")
+
         try:
-            argo_url = f"{self.ARGO_URL}/v1/workflows/argo/{workflow_name}/log"
+            argo_url = f"{self.argo_url}/api/v1/workflows/argo/{workflow_name}/log"
             params = {
                 "logOptions.container": "main",
                 "grep": "",
@@ -180,12 +236,13 @@ class ExperimentsWorkflowService(Service):
                 return {"error": "workflow_name and secret_key are required"}, 400
 
             context = ExperimentsWorkflowContext.query.filter_by(
-                workflow_name=workflow_name,
-                secret_key=secret_key
+                workflow_name=workflow_name, secret_key=secret_key
             ).first()
 
             if not context:
-                return {"error": "Workflow context not found or invalid secret key"}, 404
+                return {
+                    "error": "Workflow context not found or invalid secret key"
+                }, 404
 
             db.session.delete(context)
             db.session.commit()
