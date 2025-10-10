@@ -18,18 +18,21 @@ export const runAllWorkflows = async (recordId, files) => {
   return response;
 };
 
-export const fetchAvailableWorkflows = async (files) => {
+export const fetchAvailableWorkflows = async (recordId, files) => {
   const data = {
     files,
   };
 
-  const response = await safeFetch(`${API_URL}/workflows/available`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const response = await safeFetch(
+    `${API_URL}/workflows/${recordId}/available`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
+  );
 
   return response;
 };

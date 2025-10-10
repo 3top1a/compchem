@@ -8,7 +8,7 @@ class ExperimentsWorkflowResourceConfig(RecordResourceConfig):
     url_prefix = "/workflows"
 
     routes = {
-        "available": "/available",
+        "available": "/<record_id>/available",
         "create": "/<record_id>",
         "create_all": "/<record_id>/all",
         "list": "/<record_id>/list",

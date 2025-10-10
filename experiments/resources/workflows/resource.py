@@ -1,4 +1,6 @@
-from flask import current_app, jsonify, request
+import sys
+
+from flask import current_app, g, jsonify, request
 from flask_resources import Resource, route
 
 
@@ -25,10 +27,17 @@ class ExperimentsWorkflowResource(Resource):
 
     def post_available(self):
         """Proxy POST request to fetch available workflows."""
+        if request.view_args is None:
+            return jsonify({"error": "request view args must be defined"}), 400
+
         data = request.get_json()
+        record_id = request.view_args.get("record_id")
+
         result, status_code = self.service.get_available_workflows(
-            identity=None, data=data
+            identity=g.identity, data=data, id_=record_id
         )
+
+        print("status: " + str(status_code), file=sys.stderr)
         return jsonify(result), status_code
 
     def post_create(self):
@@ -40,7 +49,7 @@ class ExperimentsWorkflowResource(Resource):
         data = request.get_json()
 
         result, status_code = self.service.create_workflow(
-            identity=None, record_id=record_id, data=data
+            identity=g.identity, record_id=record_id, data=data
         )
         return jsonify(result), status_code
 
@@ -53,7 +62,7 @@ class ExperimentsWorkflowResource(Resource):
         data = request.get_json()
 
         result, status_code = self.service.create_all_workflows(
-            identity=None, record_id=record_id, data=data
+            identity=g.identity, record_id=record_id, data=data
         )
         return jsonify(result), status_code
 
@@ -68,7 +77,7 @@ class ExperimentsWorkflowResource(Resource):
         status_filter = request.args.get("status", default="", type=str)
 
         result, status_code = self.service.list_workflows(
-            identity=None,
+            identity=g.identity,
             record_id=record_id,
             skip=skip,
             limit=limit,
@@ -83,7 +92,7 @@ class ExperimentsWorkflowResource(Resource):
 
         workflow_name = request.view_args.get("workflow_name")
         result, status_code = self.service.get_workflow_detail(
-            identity=None, workflow_name=workflow_name
+            identity=g.identity, workflow_name=workflow_name
         )
         return jsonify(result), status_code
 
@@ -94,7 +103,7 @@ class ExperimentsWorkflowResource(Resource):
 
         workflow_name = request.view_args.get("workflow_name")
         result, status_code = self.service.get_workflow_logs(
-            identity=None, workflow_name=workflow_name
+            identity=g.identity, workflow_name=workflow_name
         )
         return jsonify(result), status_code
 
@@ -106,6 +115,6 @@ class ExperimentsWorkflowResource(Resource):
         workflow_name = request.view_args.get("workflow_name")
         secret_key = request.args.get("secret_key")
         result, status_code = self.service.remove_workflow_context(
-            identity=None, workflow_name=workflow_name, secret_key=secret_key
+            identity=g.identity, workflow_name=workflow_name, secret_key=secret_key
         )
         return jsonify(result), status_code

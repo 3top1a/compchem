@@ -1,11 +1,11 @@
 import json
-import sys
 from typing import Any, Dict
 
 import requests
 from flask import current_app
 from invenio_db import db
 from invenio_records_resources.services import Service
+from sqlalchemy.exc import NoResultFound
 
 from experiments.records.models import ExperimentsWorkflowContext
 
@@ -21,8 +21,17 @@ class ExperimentsWorkflowService(Service):
     @property
     def argo_url(self):
         """Get the Argo workflows URL from config."""
-        print(current_app.config, file=sys.stderr)
         return current_app.config.get("ARGO_WORKFLOWS_URL")
+
+    @property
+    def record_cls(self):
+        """Get the record class."""
+        return self.config.record_cls
+
+    @property
+    def draft_cls(self):
+        """Get the draft record class."""
+        return self.config.draft_cls
 
     def _check_workflows_enabled(self):
         """Check if workflows are enabled by verifying required URLs are configured."""
@@ -34,16 +43,24 @@ class ExperimentsWorkflowService(Service):
             )
         return True, None, None
 
-    def get_available_workflows(self, identity, data):
+    def get_available_workflows(self, id_, identity, data):
         """Get available workflows."""
+
         enabled, error_response, status_code = self._check_workflows_enabled()
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "get_available_workflows")
+        try:
+            record = self.record_cls.pid.resolve(id_, registered_only=False)
+        except NoResultFound:
+            record = self.draft_cls.pid.resolve(id_, registered_only=False)
 
+        self.require_permission(identity, "curator_action", record=record)
+
+        # TODO: centralize error handling in this service
         try:
             go_api_url = f"{self.fileprocessor_url}/v1/workflows/available"
+
             response = requests.post(
                 go_api_url,
                 json=data,
@@ -51,10 +68,17 @@ class ExperimentsWorkflowService(Service):
                 timeout=30,
             )
 
-            return response.json(), response.status_code
+            if response.status_code != 200:
+                return {
+                    "error": f"Fileprocessor API returned non 200 status: {response.status_code}"
+                }, 500
 
+            return response.json(), response.status_code
         except requests.exceptions.RequestException as e:
-            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
+            status_code = getattr(e.response, "status_code", "No response")
+            return {
+                "error": f"Failed to connect to workflow service: {str(e)} (status: {status_code})"
+            }, 502
         except Exception as e:
             return {"error": f"Internal server error: {str(e)}"}, 500
 
@@ -64,7 +88,7 @@ class ExperimentsWorkflowService(Service):
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "create_workflow")
+        self.check_permission(identity, "curator_action")
 
         try:
             go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}"
@@ -108,7 +132,7 @@ class ExperimentsWorkflowService(Service):
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "create_all_workflows")
+        self.check_permission(identity, "record_action")
 
         try:
             go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}/all"
@@ -148,7 +172,7 @@ class ExperimentsWorkflowService(Service):
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "list_workflows")
+        self.check_permission(identity, "record_action")
 
         try:
             params: Dict[str, Any] = {"skip": skip, "limit": limit}
@@ -170,7 +194,7 @@ class ExperimentsWorkflowService(Service):
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "get_workflow_detail")
+        self.check_permission(identity, "curator_action")
 
         try:
             go_api_url = f"{self.fileprocessor_url}/v1/workflows/{workflow_name}/detail"
@@ -188,7 +212,7 @@ class ExperimentsWorkflowService(Service):
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "get_workflow_logs")
+        self.check_permission(identity, "curator_action")
 
         try:
             argo_url = f"{self.argo_url}/api/v1/workflows/argo/{workflow_name}/log"

@@ -15,13 +15,13 @@ const handleWorkflowSelect = (setSelectedWorkflow, onWorkflowSelect) =>
         onWorkflowSelect(workflow);
     };
 
-const AvailableWorkflowsList = ({ remoteFiles, onWorkflowSelect, setWorkflowsEnabled }) => {
+const AvailableWorkflowsList = ({ recordId, remoteFiles, onWorkflowSelect, setWorkflowsEnabled }) => {
     const [availableWorkflows, setAvailableWorkflows] = useState([]);
-    const [selectedWorkflow, setSelectedWorkflow] = useState(null);
+    const [selectedWorkflow, setSelectedWorkflow] = useState(null); // TODO: remove unused
 
     useEffect(() => {
         const fetchWorkflows = async () => {
-            const response = await fetchAvailableWorkflows(remoteFiles);
+            const response = await fetchAvailableWorkflows(recordId, remoteFiles);
             if (response.ok) {
                 setWorkflowsEnabled(true);
                 setAvailableWorkflows(response.data.workflows);

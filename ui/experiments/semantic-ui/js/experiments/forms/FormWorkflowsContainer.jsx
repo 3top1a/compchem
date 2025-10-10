@@ -68,6 +68,7 @@ const FormWorkflowsContainer = () => {
                 <>
                     {currentView === 'workflows' ? (
                         <AvailableWorkflowsList
+                            recordId={recordId}
                             remoteFiles={remoteFiles}
                             onWorkflowSelect={handleWorkflowSelect}
                             setWorkflowsEnabled={setWorkflowsEnabled}
