@@ -78,8 +78,8 @@ export const listRecordWorkflows = async (
   return response;
 };
 
-export const fetchWorkflowDetail = async (workflowName) => {
-  const API = `${API_URL}/workflows/${workflowName}/detail`;
+export const fetchWorkflowDetail = async (recordId, workflowName) => {
+  const API = `${API_URL}/workflows/${recordId}/${workflowName}/detail`;
 
   const response = await safeFetch(API, {
     method: "GET",
@@ -88,8 +88,8 @@ export const fetchWorkflowDetail = async (workflowName) => {
   return response;
 };
 
-export const fetchWorkflowLogs = async (workflowName) => {
-  const API = `${API_URL}/workflows/${workflowName}/logs`;
+export const fetchWorkflowLogs = async (recordId, workflowName) => {
+  const API = `${API_URL}/workflows/${recordId}/${workflowName}/logs`;
 
   const response = await safeFetch(API, {
     method: "GET",

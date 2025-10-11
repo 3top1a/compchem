@@ -12,7 +12,7 @@ class ExperimentsWorkflowResourceConfig(RecordResourceConfig):
         "create": "/<record_id>",
         "create_all": "/<record_id>/all",
         "list": "/<record_id>/list",
-        "detail": "/<workflow_name>/detail",
-        "logs": "/<workflow_name>/logs",
+        "detail": "/<record_id>/<workflow_name>/detail",
+        "logs": "/<record_id>/<workflow_name>/logs",
         "delete_context": "/<workflow_name>/context",
     }

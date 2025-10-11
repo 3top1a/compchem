@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
     Paper,
     Tabs,
@@ -11,7 +11,7 @@ import ActiveWorkflowsList from './components/ActiveWorkflowsList';
 import ActiveWorkflowDetail from './components/ActiveWorkflowDetail';
 
 const handleTabChange = (setCurrentTab, setCurrentView, setActiveView) =>
-    (event, newValue) => {
+    (_, newValue) => {
         setCurrentTab(newValue);
         setCurrentView('workflows');
         setActiveView('list');
@@ -94,6 +94,7 @@ const FormWorkflowsContainer = () => {
                         />
                     ) : (
                         <ActiveWorkflowDetail
+                            recordId={recordId}
                             selectedActiveWorkflow={selectedActiveWorkflow}
                             onBack={handleBackToActiveList}
                         />

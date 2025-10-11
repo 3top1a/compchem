@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Typography,
     Paper,
@@ -9,15 +9,13 @@ import {
 import { PlayArrow } from '@mui/icons-material';
 import { fetchAvailableWorkflows } from '../../util/workflowsClient';
 
-const handleWorkflowSelect = (setSelectedWorkflow, onWorkflowSelect) =>
+const handleWorkflowSelect = (onWorkflowSelect) =>
     (workflow) => {
-        setSelectedWorkflow(workflow);
         onWorkflowSelect(workflow);
     };
 
 const AvailableWorkflowsList = ({ recordId, remoteFiles, onWorkflowSelect, setWorkflowsEnabled }) => {
     const [availableWorkflows, setAvailableWorkflows] = useState([]);
-    const [selectedWorkflow, setSelectedWorkflow] = useState(null); // TODO: remove unused
 
     useEffect(() => {
         const fetchWorkflows = async () => {
@@ -43,7 +41,7 @@ const AvailableWorkflowsList = ({ recordId, remoteFiles, onWorkflowSelect, setWo
                 {availableWorkflows.map((workflow, index) => (
                     <Paper key={index} elevation={1}>
                         <Button
-                            onClick={() => handleWorkflowSelect(setSelectedWorkflow, onWorkflowSelect)(workflow)}
+                            onClick={() => handleWorkflowSelect(onWorkflowSelect)(workflow)}
                             fullWidth
                             sx={{ textTransform: 'none', p: 2 }}
                         >

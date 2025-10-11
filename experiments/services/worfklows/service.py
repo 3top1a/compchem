@@ -43,44 +43,69 @@ class ExperimentsWorkflowService(Service):
             )
         return True, None, None
 
-    def get_available_workflows(self, id_, identity, data):
+    def _resolve_record(self, id_):
+        try:
+            record = self.record_cls.pid.resolve(id_, registered_only=False)
+        except NoResultFound:
+            record = self.draft_cls.pid.resolve(id_, registered_only=False)
+
+        return record
+
+    def _register_workflow_context(self, experiment_id, workflow_name, secret_key):
+        """Register workflow context in the database."""
+        new_context = ExperimentsWorkflowContext(
+            workflow_name=workflow_name,
+            secret_key=secret_key,
+            experiment_id=experiment_id,
+        )
+        db.session.add(new_context)
+        db.session.commit()
+
+    def _do_external_call(
+        self, method: str, url: str, json_data=None, params=None, expected_status=200
+    ) -> tuple[Dict[str, Any], int]:
+        """Perform a standardized external HTTP call."""
+        try:
+            response = requests.request(
+                method=method,
+                url=url,
+                json=json_data,
+                params=params,
+                headers={"Content-Type": "application/json"},
+                timeout=30,
+                verify=False,
+            )
+
+            if response.status_code != expected_status:
+                return {
+                    "error": f"Unexpected status code received: {response.status_code}, expected: {expected_status}",
+                    "status": 500,
+                }, 500
+
+            return response.json(), response.status_code
+        except requests.exceptions.RequestException as e:
+            return {
+                "error": f"Request to external service failed: {str(e)}",
+            }, 502
+        except Exception as e:
+            return {"error": f"Unexpected error: {str(e)}"}, 500
+
+    def get_available_workflows(self, record_id, identity, data):
         """Get available workflows."""
 
         enabled, error_response, status_code = self._check_workflows_enabled()
         if not enabled:
             return error_response, status_code
 
-        try:
-            record = self.record_cls.pid.resolve(id_, registered_only=False)
-        except NoResultFound:
-            record = self.draft_cls.pid.resolve(id_, registered_only=False)
+        record = self._resolve_record(record_id)
 
         self.require_permission(identity, "curator_action", record=record)
 
-        # TODO: centralize error handling in this service
-        try:
-            go_api_url = f"{self.fileprocessor_url}/v1/workflows/available"
+        api_url = f"{self.fileprocessor_url}/v1/workflows/available"
 
-            response = requests.post(
-                go_api_url,
-                json=data,
-                headers={"Content-Type": "application/json"},
-                timeout=30,
-            )
-
-            if response.status_code != 200:
-                return {
-                    "error": f"Fileprocessor API returned non 200 status: {response.status_code}"
-                }, 500
-
-            return response.json(), response.status_code
-        except requests.exceptions.RequestException as e:
-            status_code = getattr(e.response, "status_code", "No response")
-            return {
-                "error": f"Failed to connect to workflow service: {str(e)} (status: {status_code})"
-            }, 502
-        except Exception as e:
-            return {"error": f"Internal server error: {str(e)}"}, 500
+        return self._do_external_call(
+            "POST", api_url, json_data=data, expected_status=201
+        )
 
     def create_workflow(self, identity, record_id, data):
         """Create a workflow for a specific record."""
@@ -88,43 +113,35 @@ class ExperimentsWorkflowService(Service):
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "curator_action")
+        record = self._resolve_record(record_id)
 
-        try:
-            go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}"
-            response = requests.post(
-                go_api_url,
-                json=data,
-                headers={"Content-Type": "application/json"},
-                timeout=30,
-            )
+        self.require_permission(identity, "curator_action", record=record)
 
-            response_data = response.json()
+        go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}"
 
-            if (
-                response.status_code == 201
-                and "workflowName" in response_data
-                and "secretKey" in response_data
-            ):
-                try:
-                    self._register_workflow_context(
-                        record_id,
-                        response_data["workflowName"],
-                        response_data["secretKey"],
-                    )
-                except Exception as e:
-                    db.session.rollback()
-                    return {
-                        "error": f"Workflow created but failed to register context: {str(e)}",
-                        "workflow_data": response_data,
-                    }, 500
+        response_data, status = self._do_external_call(
+            "POST", go_api_url, json_data=data, expected_status=201
+        )
 
-            return response_data, response.status_code
+        if (
+            status == 201
+            and "workflowName" in response_data
+            and "secretKey" in response_data
+        ):
+            try:
+                self._register_workflow_context(
+                    record_id,
+                    response_data["workflowName"],
+                    response_data["secretKey"],
+                )
+            except Exception as e:
+                db.session.rollback()
+                return {
+                    "error": f"Workflow created but failed to register context: {str(e)}",
+                    "workflow_data": response_data,
+                }, 500
 
-        except requests.exceptions.RequestException as e:
-            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
-        except Exception as e:
-            return {"error": f"Internal server error: {str(e)}"}, 500
+        return response_data, status
 
     def create_all_workflows(self, identity, record_id, data):
         """Create all workflows for a specific record."""
@@ -132,39 +149,30 @@ class ExperimentsWorkflowService(Service):
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "record_action")
+        record = self._resolve_record(record_id)
 
-        try:
-            go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}/all"
-            response = requests.post(
-                go_api_url,
-                json=data,
-                headers={"Content-Type": "application/json"},
-                timeout=30,
-            )
+        self.require_permission(identity, "record_action", record=record)
 
-            response_data = response.json()
+        go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}/all"
 
-            if response.status_code == 201 and "workflowContexts" in response_data:
-                try:
-                    for context in response_data["workflowContexts"]:
-                        if "workflowName" in context and "secretKey" in context:
-                            self._register_workflow_context(
-                                record_id, context["workflowName"], context["secretKey"]
-                            )
-                except Exception as e:
-                    db.session.rollback()
-                    return {
-                        "error": f"Workflows created but failed to register contexts: {str(e)}",
-                        "workflow_data": response_data,
-                    }, 500
+        response_data, status = self._do_external_call(
+            "POST", go_api_url, json_data=data, expected_status=201
+        )
 
-            return response_data, response.status_code
+        if status == 201:
+            try:
+                for context in response_data["workflowContexts"]:
+                    self._register_workflow_context(
+                        record_id, context["workflowName"], context["secretKey"]
+                    )
+            except Exception as e:
+                db.session.rollback()
+                return {
+                    "error": f"Workflows created but failed to register contexts: {str(e)}",
+                    "workflow_data": response_data,
+                }, 500
 
-        except requests.exceptions.RequestException as e:
-            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
-        except Exception as e:
-            return {"error": f"Internal server error: {str(e)}"}, 500
+        return response_data, status
 
     def list_workflows(self, identity, record_id, skip=0, limit=5, status_filter=None):
         """List workflows for a specific record."""
@@ -172,47 +180,41 @@ class ExperimentsWorkflowService(Service):
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "record_action")
+        record = self._resolve_record(record_id)
 
-        try:
-            params: Dict[str, Any] = {"skip": skip, "limit": limit}
-            if status_filter:
-                params["status"] = status_filter
+        self.require_permission(identity, "record_action", record=record)
 
-            go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}/list"
-            response = requests.get(go_api_url, params=params, timeout=30)
+        params: Dict[str, Any] = {"skip": skip, "limit": limit}
+        if status_filter:
+            params["status"] = status_filter
 
-            return response.json(), response.status_code
-        except requests.exceptions.RequestException as e:
-            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
-        except Exception as e:
-            return {"error": f"Internal server error: {str(e)}"}, 500
+        go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}/list"
 
-    def get_workflow_detail(self, identity, workflow_name):
+        return self._do_external_call("GET", go_api_url, params=params)
+
+    def get_workflow_detail(self, identity, record_id, workflow_name):
         """Get workflow detail."""
         enabled, error_response, status_code = self._check_workflows_enabled()
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "curator_action")
+        record = self._resolve_record(record_id)
 
-        try:
-            go_api_url = f"{self.fileprocessor_url}/v1/workflows/{workflow_name}/detail"
-            response = requests.get(go_api_url, timeout=30)
+        self.require_permission(identity, "curator_action", record=record)
 
-            return response.json(), response.status_code
-        except requests.exceptions.RequestException as e:
-            return {"error": f"Failed to connect to workflow service: {str(e)}"}, 502
-        except Exception as e:
-            return {"error": f"Internal server error: {str(e)}"}, 500
+        go_api_url = f"{self.fileprocessor_url}/v1/workflows/{workflow_name}/detail"
 
-    def get_workflow_logs(self, identity, workflow_name):
+        return self._do_external_call("GET", go_api_url)
+
+    def get_workflow_logs(self, identity, record_id, workflow_name):
         """Get workflow logs from Argo."""
         enabled, error_response, status_code = self._check_workflows_enabled()
         if not enabled:
             return error_response, status_code
 
-        self.check_permission(identity, "curator_action")
+        record = self._resolve_record(record_id)
+
+        self.require_permission(identity, "curator_action", record=record)
 
         try:
             argo_url = f"{self.argo_url}/api/v1/workflows/argo/{workflow_name}/log"
@@ -276,13 +278,3 @@ class ExperimentsWorkflowService(Service):
         except Exception as e:
             db.session.rollback()
             return {"error": f"Failed to remove workflow context: {str(e)}"}, 500
-
-    def _register_workflow_context(self, experiment_id, workflow_name, secret_key):
-        """Register workflow context in the database."""
-        new_context = ExperimentsWorkflowContext(
-            workflow_name=workflow_name,
-            secret_key=secret_key,
-            experiment_id=experiment_id,
-        )
-        db.session.add(new_context)
-        db.session.commit()

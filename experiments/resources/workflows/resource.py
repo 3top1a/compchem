@@ -91,8 +91,9 @@ class ExperimentsWorkflowResource(Resource):
             return jsonify({"error": "request view args must be defined"}), 400
 
         workflow_name = request.view_args.get("workflow_name")
+        record_id = request.view_args.get("record_id")
         result, status_code = self.service.get_workflow_detail(
-            identity=g.identity, workflow_name=workflow_name
+            identity=g.identity, record_id=record_id, workflow_name=workflow_name
         )
         return jsonify(result), status_code
 
@@ -102,8 +103,9 @@ class ExperimentsWorkflowResource(Resource):
             return jsonify({"error": "request view args must be defined"}), 400
 
         workflow_name = request.view_args.get("workflow_name")
+        record_id = request.view_args.get("record_id")
         result, status_code = self.service.get_workflow_logs(
-            identity=g.identity, workflow_name=workflow_name
+            identity=g.identity, record_id=record_id, workflow_name=workflow_name
         )
         return jsonify(result), status_code
 

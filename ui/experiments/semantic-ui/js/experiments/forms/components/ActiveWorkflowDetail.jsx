@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Typography,
     Paper,
@@ -28,7 +28,7 @@ const handleBackToActiveList = (onBack) => () => {
     onBack();
 };
 
-const handleOpenLogsModal = (selectedActiveWorkflow, setLogsModalOpen, setIsLoadingLogs, setLogsError, setWorkflowLogs) =>
+const handleOpenLogsModal = (recordId, selectedActiveWorkflow, setLogsModalOpen, setIsLoadingLogs, setLogsError, setWorkflowLogs) =>
     async () => {
         if (!selectedActiveWorkflow?.metadata?.name) return;
 
@@ -38,7 +38,7 @@ const handleOpenLogsModal = (selectedActiveWorkflow, setLogsModalOpen, setIsLoad
         setWorkflowLogs([]);
 
         try {
-            const response = await fetchWorkflowLogs(selectedActiveWorkflow.metadata.name);
+            const response = await fetchWorkflowLogs(recordId, selectedActiveWorkflow.metadata.name);
             if (response.ok) {
                 setWorkflowLogs(response.data.logs || []);
             } else {
@@ -74,7 +74,7 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
 };
 
-const ActiveWorkflowDetail = ({ selectedActiveWorkflow, onBack }) => {
+const ActiveWorkflowDetail = ({ recordId, selectedActiveWorkflow, onBack }) => {
     const [workflowDetail, setWorkflowDetail] = useState(null);
     const [logsModalOpen, setLogsModalOpen] = useState(false);
     const [workflowLogs, setWorkflowLogs] = useState([]);
@@ -84,7 +84,7 @@ const ActiveWorkflowDetail = ({ selectedActiveWorkflow, onBack }) => {
     useEffect(() => {
         const fetchDetail = async () => {
             if (selectedActiveWorkflow?.metadata?.name) {
-                const response = await fetchWorkflowDetail(selectedActiveWorkflow.metadata.name);
+                const response = await fetchWorkflowDetail(recordId, selectedActiveWorkflow.metadata.name);
                 if (response.ok) {
                     setWorkflowDetail(response.data);
                 }
@@ -232,7 +232,7 @@ const ActiveWorkflowDetail = ({ selectedActiveWorkflow, onBack }) => {
                     <Button
                         variant="outlined"
                         startIcon={<Receipt />}
-                        onClick={handleOpenLogsModal(selectedActiveWorkflow, setLogsModalOpen, setIsLoadingLogs, setLogsError, setWorkflowLogs)}
+                        onClick={handleOpenLogsModal(recordId, selectedActiveWorkflow, setLogsModalOpen, setIsLoadingLogs, setLogsError, setWorkflowLogs)}
                     >
                         View Logs
                     </Button>
