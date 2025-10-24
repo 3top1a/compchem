@@ -49,7 +49,7 @@ class ExperimentsWorkflowResource(Resource):
         data = request.get_json()
 
         result, status_code = self.service.create_workflow(
-            identity=g.identity, record_id=record_id, data=data
+            identity=g.identity, id_=record_id, data=data
         )
         return jsonify(result), status_code
 

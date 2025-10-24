@@ -40,7 +40,7 @@ const commitFiles = async (recordId, files, localFiles, remoteFiles, deletedFile
     const successfulFiles = results
         .filter(result => result.success);
 
-    await runAllWorkflows(recordId, successfulFiles);
+    // await runAllWorkflows(recordId, successfulFiles);
 
     return failedFiles;
 }

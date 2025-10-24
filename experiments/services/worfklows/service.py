@@ -90,34 +90,32 @@ class ExperimentsWorkflowService(Service):
         except Exception as e:
             return {"error": f"Unexpected error: {str(e)}"}, 500
 
-    def get_available_workflows(self, record_id, identity, data):
+    def get_available_workflows(self, id_, identity, data):
         """Get available workflows."""
 
         enabled, error_response, status_code = self._check_workflows_enabled()
         if not enabled:
             return error_response, status_code
 
-        record = self._resolve_record(record_id)
+        record = self._resolve_record(id_)
 
         self.require_permission(identity, "curator_action", record=record)
 
         api_url = f"{self.fileprocessor_url}/v1/workflows/available"
 
-        return self._do_external_call(
-            "POST", api_url, json_data=data, expected_status=201
-        )
+        return self._do_external_call("POST", api_url, json_data=data)
 
-    def create_workflow(self, identity, record_id, data):
+    def create_workflow(self, identity, id_, data):
         """Create a workflow for a specific record."""
         enabled, error_response, status_code = self._check_workflows_enabled()
         if not enabled:
             return error_response, status_code
 
-        record = self._resolve_record(record_id)
+        record = self._resolve_record(id_)
 
         self.require_permission(identity, "curator_action", record=record)
 
-        go_api_url = f"{self.fileprocessor_url}/v1/workflows/{record_id}"
+        go_api_url = f"{self.fileprocessor_url}/v1/workflows/{id_}"
 
         response_data, status = self._do_external_call(
             "POST", go_api_url, json_data=data, expected_status=201
@@ -130,7 +128,7 @@ class ExperimentsWorkflowService(Service):
         ):
             try:
                 self._register_workflow_context(
-                    record_id,
+                    id_,
                     response_data["workflowName"],
                     response_data["secretKey"],
                 )
