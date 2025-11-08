@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
     Typography,
     Paper,
@@ -7,30 +7,13 @@ import {
     Button
 } from '@mui/material';
 import { PlayArrow } from '@mui/icons-material';
-import { fetchAvailableWorkflows } from '../../util/workflowsClient';
 
 const handleWorkflowSelect = (onWorkflowSelect) =>
     (workflow) => {
         onWorkflowSelect(workflow);
     };
 
-const AvailableWorkflowsList = ({ recordId, remoteFiles, onWorkflowSelect, setWorkflowsEnabled }) => {
-    const [availableWorkflows, setAvailableWorkflows] = useState([]);
-
-    useEffect(() => {
-        const fetchWorkflows = async () => {
-            const response = await fetchAvailableWorkflows(recordId, remoteFiles);
-            if (response.ok) {
-                setWorkflowsEnabled(true);
-                setAvailableWorkflows(response.data.workflows);
-            } else {
-                setWorkflowsEnabled(false);
-                setAvailableWorkflows([]);
-            }
-        };
-
-        fetchWorkflows();
-    }, [remoteFiles]);
+const AvailableWorkflowsList = ({ workflows, onWorkflowSelect }) => {
 
     return (
         <Stack spacing={3}>
@@ -38,7 +21,7 @@ const AvailableWorkflowsList = ({ recordId, remoteFiles, onWorkflowSelect, setWo
                 Available Workflows
             </Typography>
             <Stack spacing={2}>
-                {availableWorkflows.map((workflow, index) => (
+                {workflows.map((workflow, index) => (
                     <Paper key={index} elevation={1}>
                         <Button
                             onClick={() => handleWorkflowSelect(onWorkflowSelect)(workflow)}

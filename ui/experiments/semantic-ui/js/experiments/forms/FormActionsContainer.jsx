@@ -12,6 +12,7 @@ import { runAllWorkflows } from '../util/workflowsClient';
 
 
 const commitFiles = async (recordId, files, localFiles, remoteFiles, deletedFiles) => {
+    const uploadedFiles = [];
 
     const promises = files.map(async (fileName) => {
         let response = null;
@@ -20,8 +21,10 @@ const commitFiles = async (recordId, files, localFiles, remoteFiles, deletedFile
             response = await modifyFileInRecord(recordId, fileName, localFiles[fileName]);
         else if (deletedFiles.includes(fileName))
             response = await deleteFileFromRecord(recordId, fileName);
-        else if (localFiles.hasOwnProperty(fileName))
+        else if (localFiles.hasOwnProperty(fileName)) {
             response = await uploadFileToRecord(recordId, localFiles[fileName]);
+            if (response.ok) uploadedFiles.push({ key: response.data.key, mimetype: response.data.mimetype });
+        }
         else
             return { fileName, success: true };
 
@@ -40,13 +43,9 @@ const commitFiles = async (recordId, files, localFiles, remoteFiles, deletedFile
     const successfulFiles = results
         .filter(result => result.success);
 
-    // await runAllWorkflows(recordId, successfulFiles);
+    await runAllWorkflows(recordId, uploadedFiles);
 
     return failedFiles;
-}
-
-const runWorkflowsForFiles = async (recordId, files) => {
-  runAllWorkflows(recordId, files);
 }
 
 const updateLocalState = (failedFiles, localFiles, setLocalFiles, remoteFiles, setRemoteFiles, deletedFiles, setDeletedFiles, files) => {

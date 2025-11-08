@@ -2,9 +2,10 @@ import sys
 
 from flask import current_app, g, jsonify, request
 from flask_resources import Resource, route
+from invenio_records_resources.resources.errors import ErrorHandlersMixin
 
 
-class ExperimentsWorkflowResource(Resource):
+class ExperimentsWorkflowResource(ErrorHandlersMixin, Resource):
     """Experiments workflow resource."""
 
     @property

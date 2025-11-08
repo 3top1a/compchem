@@ -11,9 +11,9 @@ export const safeFetch = async (url, options = {}) => {
       data = null;
     }
 
-    return { ok: response.ok, data };
+    return { ok: response.ok, status: response.status, data };
   } catch (error) {
     console.error("Network error:", error);
-    return { ok: false, data: null };
+    return { ok: false, status: null, data: null };
   }
 };

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Paper,
     Tabs,
     Tab
 } from '@mui/material';
 import { useFormContext } from './context';
+import { fetchAvailableWorkflows } from '../util/workflowsClient';
 import AvailableWorkflowsList from './components/AvailableWorkflowsList';
 import FileSelection from './components/FileSelection';
 import ActiveWorkflowsList from './components/ActiveWorkflowsList';
@@ -22,6 +23,8 @@ const FormWorkflowsContainer = () => {
     const recordId = record.id;
 
     const [workflowsEnabled, setWorkflowsEnabled] = useState(true);
+    const [availableWorkflowsAccessible, setAvailableWorkflowsAccessible] = useState(true);
+    const [availableWorkflows, setAvailableWorkflows] = useState([]);
     const [currentTab, setCurrentTab] = useState(0);
     const [currentView, setCurrentView] = useState('workflows'); // 'workflows' | 'files'
     const [activeView, setActiveView] = useState('list'); // 'list' | 'detail'
@@ -53,25 +56,42 @@ const FormWorkflowsContainer = () => {
         setSelectedActiveWorkflow(null);
     };
 
+    useEffect(() => {
+        const fetchWorkflows = async () => {
+            const response = await fetchAvailableWorkflows(recordId, remoteFiles);
+            if (response.ok) {
+                setWorkflowsEnabled(true);
+                setAvailableWorkflows(response.data.workflows);
+            } else if (response.status === 403) {
+                setWorkflowsEnabled(true);
+                setAvailableWorkflowsAccessible(false);
+                setAvailableWorkflows([]);
+            } else {
+                setWorkflowsEnabled(false);
+                setAvailableWorkflows([]);
+            }
+        };
+
+        fetchWorkflows();
+    }, [remoteFiles]);
+
     if (!workflowsEnabled) {
         return <></>;
     }
 
     return (
         <Paper elevation={3} sx={{ p: 3 }}>
-            <Tabs value={currentTab} onChange={handleTabChange(setCurrentTab, setCurrentView, setActiveView)} sx={{ mb: 3 }}>
-                <Tab label="Available Workflows" />
+            <Tabs variant="fullWidth" value={currentTab} onChange={handleTabChange(setCurrentTab, setCurrentView, setActiveView)} sx={{ mb: 3 }}>
+                {availableWorkflowsAccessible && <Tab label="Available Workflows" />}
                 <Tab label="Active Workflows" />
             </Tabs>
 
-            {currentTab === 0 && (
+            {availableWorkflowsAccessible && currentTab === 0 && (
                 <>
                     {currentView === 'workflows' ? (
                         <AvailableWorkflowsList
-                            recordId={recordId}
-                            remoteFiles={remoteFiles}
+                            workflows={availableWorkflows}
                             onWorkflowSelect={handleWorkflowSelect}
-                            setWorkflowsEnabled={setWorkflowsEnabled}
                         />
                     ) : (
                         <FileSelection
@@ -85,7 +105,7 @@ const FormWorkflowsContainer = () => {
                 </>
             )}
 
-            {currentTab === 1 && (
+            {(!availableWorkflowsAccessible || currentTab === 1) && (
                 <>
                     {activeView === 'list' ? (
                         <ActiveWorkflowsList
