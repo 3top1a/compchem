@@ -11,7 +11,7 @@ class ExperimentsFileService(FileService):
 class ExperimentsFileDraftService(FileService):
     """ExperimentsFileDraft service."""
 
-    def authenticate_request(self, record_id: str, secret_key: str) -> bool:
+    def authenticate_workflow(self, record_id: str, secret_key: str) -> bool:
         """Verify secret key for the given record."""
         try:
             context = ExperimentsWorkflowContext.query.filter_by(
@@ -28,7 +28,7 @@ class ExperimentsFileDraftService(FileService):
     def read_file(self, identity, id_, file_key, secret_key, **kwargs):
         """Generate S3 signed URLs for reading files."""
 
-        if not self.authenticate_request(id_, secret_key):
+        if not self.authenticate_workflow(id_, secret_key):
             raise PermissionDeniedError("workflow_read_file")
 
         return self.get_file_content(
@@ -36,7 +36,7 @@ class ExperimentsFileDraftService(FileService):
         )
 
     def write_file(self, identity, id_, file_key, stream, secret_key, **kwargs):
-        if not self.authenticate_request(id_, secret_key):
+        if not self.authenticate_workflow(id_, secret_key):
             raise PermissionDeniedError("workflow_write_file")
 
         self.init_files(identity=identity, id_=id_, data=[{"key": file_key}])
