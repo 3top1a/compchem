@@ -1,3 +1,5 @@
+# TODO Migrate requirements -> pyproject and use uv
+
 [project]
 name = "repo"
 version = "1.0.0"
@@ -19,10 +21,10 @@ dependencies = [
     "oarepo-ui",
     "oarepo-vocabularies",
     "oarepo-workflows",
-    "oarepo[s3,rdm]>=12.1.0",
+    "oarepo[s3,rdm]>=12.2.9",
     "python-dotenv",
 ]
-requires-python = ">=3.12,<3.13"
+requires-python = "~=3.12.0"
 
 [project.entry-points."invenio_assets.webpack"]
 branding = "ui.branding.webpack:theme"

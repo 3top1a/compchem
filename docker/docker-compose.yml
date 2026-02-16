@@ -1,3 +1,5 @@
+# TODO Update all containers to same versions that invenioRDM uses
+
 version: "3.5"
 name: "compchem"
 services:
@@ -26,8 +28,9 @@ services:
       - "${INVENIO_RABBIT_HOST}:${INVENIO_RABBIT_ADMIN_PORT}:15672"
       - "${INVENIO_RABBIT_HOST}:${INVENIO_RABBIT_PORT}:5672"
 
+  # TODO Replace with non-bitnami image
   search:
-    image: bitnami/opensearch:2
+    image: bitnamilegacy/opensearch:2
     restart: "unless-stopped"
     environment:
       # settings only for development. DO NOT use in production!

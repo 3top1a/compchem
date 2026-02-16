@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
@@ -36,6 +36,7 @@ if [ -f ~/.envrc.local ] ; then
   source ~/.envrc.local
 fi
 
+# TODO Get rid of this monstrosity
 PYTHON_VERSION="${PYTHON_VERSION:-3.12}"
 SUPPORTED_PYTHON_PATHS=(
   "/usr/bin/python${PYTHON_VERSION}"
