@@ -36,34 +36,7 @@ if [ -f ~/.envrc.local ] ; then
   source ~/.envrc.local
 fi
 
-# TODO Get rid of this monstrosity
-PYTHON_VERSION="${PYTHON_VERSION:-3.12}"
-SUPPORTED_PYTHON_PATHS=(
-  "/usr/bin/python${PYTHON_VERSION}"
-  "/opt/homebrew/bin/python${PYTHON_VERSION}"
-  "/usr/local/bin/python${PYTHON_VERSION}"
-)
-
-if [ -z "$PYTHON" ] ; then
-
-  # find a supported python
-  for python_path in "${SUPPORTED_PYTHON_PATHS[@]}"; do
-      if [ -x "$python_path" ] ; then
-        # try to execute it
-        if command -v $python_path >/dev/null 2>&1; then
-            PYTHON=$python_path
-            break
-        fi
-      fi
-  done
-
-  if [ -z "$PYTHON" ] ; then
-    echo "No supported python found. Please install python 3.10
-    or set the PYTHON environment variable to the python executable."
-    exit 1
-  fi
-fi
-
+PYTHON=$(which python3)
 echo "Will use python at path $PYTHON"
 export PYTHON
 
