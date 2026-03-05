@@ -1,12 +1,14 @@
 # Pre-install
 
 - Node 21
-- Python 3.12
+- [uv](https://docs.astral.sh/uv/)
 - Docker
 
+For Nix or similar deployments, see `shell.nix` which can be activated by running `nix-shell`.
 
 # Prepare the environment
 
+- run `uv sync`
 - run `./nrp upgrade` (should fail on *webpack install*)
 - edit `.nrp/devtools/lib/python3.12/site-packages/nrp_devtools/commands/ui/assets.py`
   - in the `install_npm_packages` function, add `--legacy-peer-deps` to the `webpack install` command
@@ -62,4 +64,15 @@ invenio users create -a -c test@test.com
 rm -rf .nrp .pdm-build .venv
 find . -name "__pycache__" -type d -exec rm -rf {} +
 docker compose -f docker/docker-compose.yml down
+```
+
+## Temp stuff for transition
+
+```
+uv sync
+
+# Edit .venv/lib/python3.12/site-packages/nrp_devtools/commands/resolver
+# and remove everything that would clear or remove the .venv and install pip again
+
+
 ```

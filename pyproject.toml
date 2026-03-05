@@ -33,6 +33,7 @@ dependencies = [ # TODO Update to newest versions
     "python-dotenv==1.0.1",
     "whitenoise==6.9.0",
     "nrp-devtools==1.*",
+    "pillow>=11.3.0",
 ]
 
 # Add CESNET's own registry

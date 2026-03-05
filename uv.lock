@@ -4541,6 +4541,7 @@ dependencies = [
     { name = "oarepo-workflows" },
     { name = "openpyxl" },
     { name = "orcid" },
+    { name = "pillow" },
     { name = "python-dotenv" },
     { name = "whitenoise" },
 ]
@@ -4579,6 +4580,7 @@ requires-dist = [
     { name = "oarepo-workflows", specifier = "==1.1.11" },
     { name = "openpyxl", specifier = "==3.1.5" },
     { name = "orcid", specifier = "==1.0.3" },
+    { name = "pillow", specifier = ">=11.3.0" },
     { name = "python-dotenv", specifier = "==1.0.1" },
     { name = "whitenoise", specifier = "==6.9.0" },
 ]
