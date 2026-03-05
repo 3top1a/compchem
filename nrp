@@ -5,9 +5,7 @@ set -e
 base_directory="$(dirname "$0")"
 export base_directory="$(readlink -f "$base_directory")"
 
-export nrp_directory="$base_directory/.nrp"
 export venv_directory="$base_directory/.venv"
-export devtools_cli_directory="$nrp_directory/devtools"
 
 echo "base_directory: $base_directory"
 
@@ -41,32 +39,7 @@ echo "Will use python at path $PYTHON"
 export PYTHON
 
 check_create_nrp_venv() {
-
-  if [ ! -d "$venv_directory" ] ; then
-    mkdir "$venv_directory"
-  fi
-
-  # if there is a devtools directory and can not call nrp-devtools inside it,
-  # remove the directory
-  if [ -d "$devtools_cli_directory" ] ; then
-    if ! "$devtools_cli_directory"/bin/nrp-devtools --help >/dev/null 2>&1 ; then
-      rm -rf "$devtools_cli_directory"
-    fi
-  fi
-
-  if [ ! -d "$devtools_cli_directory" ] ; then
-    # make parent directory if it does not exist
-    if [ ! -d "$(dirname "$devtools_cli_directory")" ] ; then
-      mkdir -p "$(dirname "$devtools_cli_directory")"
-    fi
-    $PYTHON -m venv "${devtools_cli_directory}"
-    "${devtools_cli_directory}"/bin/pip install -U setuptools pip wheel
-    if [ -z "$LOCAL_NRP_DEVTOOLS_LOCATION" ] ; then
-      "${devtools_cli_directory}"/bin/pip install "nrp-devtools==${NRP_VERSION}.*"
-    else
-      "${devtools_cli_directory}"/bin/pip install -e "$LOCAL_NRP_DEVTOOLS_LOCATION"
-    fi
-  fi
+	uv sync
 }
 
 run_service() {
@@ -78,12 +51,12 @@ run_service() {
 
   echo "Checking if should run $service_name ..."
 
-  while [ -f $nrp_directory/.run_${service_name} ] ; do
+  while [ -f $venv_directory/.run_${service_name} ] ; do
     echo "Trying to run $service_name ..."
     "$cmd" "$@" </dev/null &
     pid=$!
     echo "Running $service_name with pid $pid ..."
-    echo "$pid" > $nrp_directory/.${service_name}_pid
+    echo "$pid" > $venv_directory/.${service_name}_pid
     # wait up a bit if the process dies immediately
     sleep 10
     # wait for the process to finish
@@ -95,13 +68,13 @@ run_service() {
 
 
 run_file_watcher() {
-  touch "$nrp_directory/.run_watcher"
+  touch "$venv_directory/.run_watcher"
   run_service watcher \
-    "$devtools_cli_directory"/bin/nrp-devtools watch
+    "$venv_directory"/bin/nrp-devtools watch
 }
 
 run_backend() {
-  touch "$nrp_directory/.run_backend"
+  touch "$venv_directory/.run_backend"
   run_service backend \
     "$venv_directory"/bin/invenio run \
     --cert $base_directory/docker/development.crt \
@@ -109,7 +82,7 @@ run_backend() {
 }
 
 run_frontend() {
-  touch "$nrp_directory/.run_frontend"
+  touch "$venv_directory/.run_frontend"
   cd "$venv_directory"/var/instance/assets
   run_service frontend npm run start
 }
@@ -139,21 +112,21 @@ stop_gracefully() {
 }
 
 stop_watcher() {
-  stop_gracefully "$nrp_directory/.watcher_pid"
+  stop_gracefully "$venv_directory/.watcher_pid"
 }
 
 stop_backend() {
-  stop_gracefully "$nrp_directory/.backend_pid"
+  stop_gracefully "$venv_directory/.backend_pid"
 }
 
 stop_frontend() {
-  stop_gracefully "$nrp_directory/.frontend_pid"
+  stop_gracefully "$venv_directory/.frontend_pid"
 }
 
 develop_cleanup() {
-  rm -f "$nrp_directory/.run_watcher"
-  rm -f "$nrp_directory/.run_backend"
-  rm -f "$nrp_directory/.run_frontend"
+  rm -f "$venv_directory/.run_watcher"
+  rm -f "$venv_directory/.run_backend"
+  rm -f "$venv_directory/.run_frontend"
 
   echo "Stopping watcher ..."
   stop_watcher
@@ -207,8 +180,8 @@ run_develop_with_shell() {
 # main entrypoint in here
 
 check_create_nrp_venv
-source "$devtools_cli_directory"/bin/activate
-"$devtools_cli_directory"/bin/nrp-devtools "$@"
+source "$venv_directory"/bin/activate
+"$venv_directory"/bin/nrp-devtools "$@"
 
 # if running nrp develop in shell,
 # start the services and run the input cmd watcher
