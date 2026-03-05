@@ -3,8 +3,8 @@ name = "repo"
 version = "1.0.0"
 description = ""
 requires-python = "~=3.12.0"
-dependencies = [
-    "oarepo[s3,rdm]==12.2.9",
+dependencies = [ # TODO Update to newest versions
+    "oarepo[s3,rdm]~=12.2.9",
     "cachetools==5.5.2",
     "deepmerge==2.0",
     "et-xmlfile==2.0.0",
@@ -33,6 +33,12 @@ dependencies = [
     "python-dotenv==1.0.1",
     "whitenoise==6.9.0",
 ]
+
+# Add CESNET's own registry
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://gitlab.cesnet.cz/api/v4/projects/1408/packages/pypi/simple"
+default = true
 
 [project.entry-points."invenio_assets.webpack"]
 branding = "ui.branding.webpack:theme"
