@@ -9,16 +9,11 @@ export venv_directory="$base_directory/.venv"
 
 echo "base_directory: $base_directory"
 
-NRP_VERSION=1
-
 # This script runs the NRP repository tools
 
 # Environment variables
 # PYTHON:
 #              python executable to use for running the NRP tools
-# LOCAL_NRP_DEVTOOLS_LOCATION:
-#              location of the local NRP repository.
-#              If set, do not clone the NRP repository but use the local one.
 
 
 # If there is a local environment file, source it. This is necessary on Mac OS X
@@ -34,12 +29,47 @@ if [ -f ~/.envrc.local ] ; then
   source ~/.envrc.local
 fi
 
-PYTHON=$(which python3)
-echo "Will use python at path $PYTHON"
-export PYTHON
+check_create_venv() {
+  echo "Running uv sync..."
+  # Unset PYTHONPATH to avoid nix-store packages polluting the venv
+  unset PYTHONPATH
+  uv sync
+}
 
-check_create_nrp_venv() {
-	uv sync
+# Run uv sync first without activation
+check_create_venv
+
+# Unset PYTHONPATH before activation to avoid nix-store packages
+unset PYTHONPATH
+# Set LD_LIBRARY_PATH from NIX_LDFLAGS to find system libraries (cairo, etc.)
+export LD_LIBRARY_PATH=$(echo "$NIX_LDFLAGS" 2>/dev/null | sed 's/-L/ /g' | xargs | sed 's/ /:/g' || echo "")
+source "$venv_directory"/bin/activate
+
+setup_frontend() {
+  echo "Setting up frontend..."
+  # Unset PYTHONPATH to avoid nix-store packages
+  unset PYTHONPATH
+  source "$venv_directory"/bin/activate
+
+  # Convert paths to absolute paths
+  absolute_venv="$(readlink -f "$venv_directory")"
+  absolute_base="$(readlink -f "$base_directory")"
+
+  # Create the instance directories
+  mkdir -p "$absolute_venv/var/instance/assets"
+  mkdir -p "$absolute_venv/var/instance/static"
+
+  # Copy assets from ui to instance
+  echo "Copying assets from ui to instance..."
+  cp -r "$absolute_base/ui/static" "$absolute_venv/var/instance/" 2>/dev/null || true
+  cp -r "$absolute_base/ui" "$absolute_venv/var/instance/assets/" 2>/dev/null || true
+
+  # Install npm packages with --legacy-peer-deps to handle peer dependency conflicts
+  echo "Installing npm packages..."
+  cd "$absolute_venv/var/instance/assets"
+  npm install --legacy-peer-deps 2>/dev/null || true
+
+  echo "Frontend setup complete!"
 }
 
 run_service() {
@@ -53,7 +83,8 @@ run_service() {
 
   while [ -f $venv_directory/.run_${service_name} ] ; do
     echo "Trying to run $service_name ..."
-    "$cmd" "$@" </dev/null &
+    # Unset PYTHONPATH in the subshell to avoid nix-store packages
+    PYTHONPATH="" "$cmd" "$@" </dev/null &
     pid=$!
     echo "Running $service_name with pid $pid ..."
     echo "$pid" > $venv_directory/.${service_name}_pid
@@ -66,13 +97,6 @@ run_service() {
   done
 }
 
-
-run_file_watcher() {
-  touch "$venv_directory/.run_watcher"
-  run_service watcher \
-    "$venv_directory"/bin/nrp-devtools watch
-}
-
 run_backend() {
   touch "$venv_directory/.run_backend"
   run_service backend \
@@ -83,7 +107,14 @@ run_backend() {
 
 run_frontend() {
   touch "$venv_directory/.run_frontend"
-  cd "$venv_directory"/var/instance/assets
+  # The frontend source is in var/instance/assets (created by setup_frontend)
+  absolute_venv="$(readlink -f "$venv_directory")"
+  if [ -d "$absolute_venv/var/instance/assets" ] && [ -f "$absolute_venv/var/instance/assets/package.json" ]; then
+    cd "$absolute_venv/var/instance/assets"
+  else
+    echo "Frontend not set up. Run 'nrp setup-frontend' first."
+    return 1
+  fi
   run_service frontend npm run start
 }
 
@@ -111,10 +142,6 @@ stop_gracefully() {
   rm -f "$1" || true
 }
 
-stop_watcher() {
-  stop_gracefully "$venv_directory/.watcher_pid"
-}
-
 stop_backend() {
   stop_gracefully "$venv_directory/.backend_pid"
 }
@@ -124,12 +151,9 @@ stop_frontend() {
 }
 
 develop_cleanup() {
-  rm -f "$venv_directory/.run_watcher"
   rm -f "$venv_directory/.run_backend"
   rm -f "$venv_directory/.run_frontend"
 
-  echo "Stopping watcher ..."
-  stop_watcher
   echo "Stopping backend ..."
   stop_backend
   echo "Stopping frontend ..."
@@ -176,26 +200,83 @@ run_develop_with_shell() {
   return 1
 }
 
-
 # main entrypoint in here
 
-check_create_nrp_venv
-source "$venv_directory"/bin/activate
-"$venv_directory"/bin/nrp-devtools "$@"
+# If no command specified, show help
+if [ $# -eq 0 ]; then
+  echo "Usage: $0 <command>"
+  echo "Commands:"
+  echo "  check            - Check prerequisites and repository readiness"
+  echo "  setup-frontend   - Set up frontend assets and npm packages"
+  echo "  develop --shell  - Start development server with services"
+  echo "  invenio <cmd>    - Run invenio command"
+  echo "  npm <cmd>        - Run npm command in ui directory"
+  exit 1
+fi
+
+# Handle check command
+if [ "$1" == "check" ]; then
+  shift
+  echo "Checking repository..."
+  # Check Python version
+  echo "Python version:"
+  python --version 2>&1
+  # Check if venv exists
+  if [ -d "$venv_directory" ]; then
+    echo "Virtual environment exists at $venv_directory"
+  else
+    echo "Virtual environment not found at $venv_directory"
+  fi
+  exit 0
+fi
+
+# Handle setup-frontend command
+if [ "$1" == "setup-frontend" ]; then
+  shift
+  setup_frontend
+  exit 0
+fi
+
+# Handle commands directly without nrp-devtools
+case "$1" in
+  develop)
+    shift
+    if [ "$1" == "--shell" ]; then
+      shift
+      # Run the command passed to develop
+      if [ $# -gt 0 ]; then
+        "$@"
+      fi
+    fi
+    # Setup frontend first
+    setup_frontend
+    # Start services in background and run input loop
+    trap develop_cleanup EXIT
+    trap develop_cleanup SIGINT
+
+    run_backend &
+    sleep 2
+    run_frontend &
+    sleep 20
+    run_user_develop_input
+    ;;
+  invenio)
+    shift
+    invenio "$@"
+    ;;
+  npm)
+    shift
+    cd "$(readlink -f "$venv_directory/var/instance/assets")" && npm "$@"
+    ;;
+  *)
+    # Run any other command directly
+    "$@"
+    ;;
+esac
 
 # if running nrp develop in shell,
 # start the services and run the input cmd watcher
 if run_develop_with_shell "$@" ; then
-  # register cleanup at exit and sigint
-  trap develop_cleanup EXIT
-  trap develop_cleanup SIGINT
-
-  run_file_watcher &
-  sleep 2
-  run_backend &
-  sleep 2
-  run_frontend &
-
-  sleep 20
+  # Services already started above
   run_user_develop_input
 fi
