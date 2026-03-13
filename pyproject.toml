@@ -2,7 +2,7 @@
 name = "repo"
 version = "1.0.0"
 description = ""
-requires-python = "~=3.12.0"
+requires-python = "~=3.13.0"
 dependencies = [ # TODO Update to newest versions
     "oarepo[s3,rdm]~=12.2.9",
     "cachetools==5.5.2",
@@ -32,7 +32,6 @@ dependencies = [ # TODO Update to newest versions
     "orcid==1.0.3",
     "python-dotenv==1.0.1",
     "whitenoise==6.9.0",
-    "nrp-devtools==1.*",
     "pillow>=11.3.0",
 ]
 
@@ -104,7 +103,8 @@ requires = [
 ]
 build-backend = "pdm.backend"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest-invenio>=1.4.11",
+    "nrp-devtools==1.*",
 ]
