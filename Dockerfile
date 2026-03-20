@@ -27,7 +27,6 @@ WORKDIR /app
 
 # Copy project files
 COPY pyproject.toml uv.lock ./
-COPY invenio.cfg variables ./
 
 # Install Python dependencies
 RUN uv sync
@@ -47,4 +46,3 @@ ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 5000
 
 CMD ["bash"]
-

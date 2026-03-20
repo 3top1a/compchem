@@ -7,6 +7,7 @@
 run:
 	invenio run --cert adhoc --host 0.0.0.0
 
+docker: setup_deps run
 initialize: setup_deps reset_db setup_invenio
 
 setup_deps:
@@ -16,20 +17,23 @@ setup_deps:
 	cp variables .venv/var/instance/variables
 
 setup_invenio:
-	invenio oarepo assets collect .venv/var/instance/watch.list.json
-	invenio webpack clean create
-	invenio webpack install --legacy-peer-deps
-	invenio webpack build
+	uv run invenio oarepo assets collect .venv/var/instance/watch.list.json
+	uv run invenio webpack clean create
+	uv run invenio webpack install --legacy-peer-deps
+	uv run invenio webpack build
 
 reset_db:
-	invenio db init
-	invenio alembic upgrade heads
-	invenio index init
-	invenio index queue init purge
-	invenio oarepo fixtures load
-	invenio users create admin@example.com --password=admin --active
-	invenio roles create admin
-	invenio access allow superuser-access role admin
-	invenio roles add admin@example.com admin
-	@echo "Admin user: admin@example.com / password: admin"
+	uv run invenio db destroy --yes-i-know || true
+	uv run invenio db init create
+	uv run invenio index destroy --force --yes-i-know || true
+	uv run invenio index init
+	uv run invenio oarepo cf init
+	uv run invenio index queue init purge
+	uv run invenio files location create --default 'default-location' file:///app/.venv/var/instance/data
+	uv run invenio oarepo fixtures load
+	uv run invenio users create admin@example.com --password=admin123 --active
+	uv run invenio roles create admin
+	uv run invenio access allow superuser-access role admin
+	uv run invenio roles add admin@example.com admin
+	@echo "Admin user: admin@example.com / password: admin123"
 

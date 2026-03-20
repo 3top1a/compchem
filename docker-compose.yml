@@ -9,6 +9,7 @@ services:
     read_only: true
     ports:
       - "${INVENIO_REDIS_HOST}:${INVENIO_REDIS_PORT}:6379"
+
   db:
     image: postgres:15-alpine
     restart: "unless-stopped"
@@ -51,6 +52,7 @@ services:
     ports:
       - "${INVENIO_OPENSEARCH_HOST}:${INVENIO_OPENSEARCH_PORT}:9200"
       - "${INVENIO_OPENSEARCH_HOST}:${INVENIO_OPENSEARCH_CLUSTER_PORT}:9600"
+
   s3:
     image: minio/minio:latest
     restart: "unless-stopped"
@@ -66,3 +68,47 @@ services:
     ports:
       - "${INVENIO_S3_HOST}:${INVENIO_S3_PORT}:9000"
       - "${INVENIO_S3_HOST}:${INVENIO_S3_PORT1}:9001"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "unless-stopped"
+    environment: # TODO Make all env vars in one file
+      - "INVENIO_UI_HOST=0.0.0.0"
+      - "INVENIO_UI_PORT=5000"
+      - "INVENIO_API_HOST=0.0.0.0"
+      - "INVENIO_API_PORT=5000"
+      - "INVENIO_REDIS_HOST=cache"
+      - "INVENIO_REDIS_PORT=6379"
+      - "INVENIO_DATABASE_HOST=db"
+      - "INVENIO_DATABASE_PORT=5432"
+      - "INVENIO_RABBIT_HOST=mq"
+      - "INVENIO_RABBIT_PORT=5672"
+      - "INVENIO_OPENSEARCH_HOST=search"
+      - "INVENIO_OPENSEARCH_PORT=9200"
+      - "INVENIO_S3_HOST=s3"
+      - "INVENIO_S3_PORT=9000"
+      - "INVENIO_SECRET_KEY=${INVENIO_SECRET_KEY:-dev-secret-key}"
+      - "INVENIO_DATABASE_USER=${INVENIO_DATABASE_USER:-compchem}"
+      - "INVENIO_DATABASE_PASSWORD=${INVENIO_DATABASE_PASSWORD:-compchem}"
+      - "INVENIO_DATABASE_DBNAME=${INVENIO_DATABASE_DBNAME:-compchem}"
+      - "INVENIO_RABBIT_USER=${INVENIO_RABBIT_USER:-compchem}"
+      - "INVENIO_RABBIT_PASSWORD=${INVENIO_RABBIT_PASSWORD:-compchem}"
+      - "INVENIO_S3_ACCESS_KEY=${INVENIO_S3_ACCESS_KEY:-minioadmin}"
+      - "INVENIO_S3_SECRET_KEY=${INVENIO_S3_SECRET_KEY:-minioadmin}"
+    ports:
+      - "5000:5000"
+    volumes:
+      - ".:/app"
+      - "app-venv:/app/.venv/var/instance"
+    depends_on:
+      - cache
+      - db
+      - mq
+      - search
+      - s3
+    command: bash -c "make docker"
+
+volumes:
+  app-venv:

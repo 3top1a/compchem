@@ -21,6 +21,16 @@ and should not be modified:
 - `.venv` - virtual environment for the repository
 - `.venv-*` - additional virtual environments for tools
 
+## New Setup
+
+```bash
+docker-compose up
+docker-compose exec app bash
+make initialize # in docker container
+```
+
+Ignore everything after this.
+
 ## Basic commands
 
 ### Checking requirements
